@@ -36,13 +36,20 @@ void Camera::createProjectionMatrix( float pFOV, float pAspect,
 	float planeDiff	= mFarPlane - mNearPlane;
 
 	// Lens.
-	mProjection._11 = xScale;
+	/*mProjection._11 = xScale;
 	mProjection._22 = yScale;
 	mProjection._33 = mFarPlane / planeDiff;
 	mProjection._43 = ( mNearPlane * mFarPlane ) / ( mNearPlane - mFarPlane );
 	mProjection._34 = 1.0f;
-	mProjection._44 = 0.0f;
+	mProjection._44 = 0.0f;*/
 
+	//Test
+	mProjection._11 = (2* mNearPlane) / mFOV;
+	mProjection._22 = (2* mNearPlane) * mAspect;
+	mProjection._33 = mFarPlane / planeDiff;
+	mProjection._43 = (mNearPlane*mFarPlane) / (mNearPlane - mFarPlane);
+	mProjection._34 = 1.0f;
+	mProjection._44 = 0.0f;
 }
 
 void Camera::updateViewMatrix()
@@ -120,7 +127,7 @@ void Camera::setViewMatrix(D3DXVECTOR3 pPos)
 
 void Camera::walk( float f )
 {
-	D3DXVECTOR3		moveVector( mLookAt.x,mLookAt.y, mLookAt.z );
+	D3DXVECTOR3		moveVector( mLookAt.x,0.0f, mLookAt.z );
 	D3DXVec3Normalize( &moveVector, &moveVector );
 	moveVector *= f;
 	mVelocity += moveVector;

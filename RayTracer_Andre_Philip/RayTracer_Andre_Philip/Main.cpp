@@ -227,8 +227,9 @@ HRESULT Update(float deltaTime)
 		else
 			g_mouseInput->changeToFPSMode();
 	}
-	g_camera->updateViewMatrix();
 	g_camera->updateCameraPos();
+	g_camera->updateViewMatrix();
+	
 
 	g_cData.camPos = g_camera->getPosition();
 	D3DXMATRIX viewInv;

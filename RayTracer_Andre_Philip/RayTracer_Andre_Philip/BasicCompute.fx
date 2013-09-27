@@ -49,7 +49,7 @@ void main( uint3 threadID : SV_DispatchThreadID )
 	s.position = float3(0,0,0);
 	s.radius = 5.f;
 	s.color = float3(1,0,0);
-	float4 tSPos = mul(float4(s.position,1.f), WVP);
+	float4 tSPos = mul(float4(s.position,0.f), WVP); //Was 1 before and it acted wired... 
 	s.position = tSPos.xyz;
 
 	float screenSpaceX = ((((float)threadID.x/screenWidth)  *2) - 1.0f);
