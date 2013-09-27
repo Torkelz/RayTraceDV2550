@@ -17,6 +17,7 @@ cbuffer cBufferdata : register(b0)
 {
 	matrix		viewMatInv;
 	matrix		projMatInv;
+	matrix		WVP;
 	float3		camPos;
 	int			screenWidth;
 	int			screenHeight;
@@ -29,8 +30,9 @@ struct Ray
 	float3 origin;
 	float3 direction;
 };
-
 RWTexture2D<float4> output : register(u0);
+//Methods
+float3 RaySphereIntersect(Ray r, Sphere s);
 
 //[numthreads(32, 32, 1)]
 //void main( uint3 threadID : SV_DispatchThreadID )
@@ -43,19 +45,53 @@ void main( uint3 threadID : SV_DispatchThreadID )
 {
 	Ray r;
 	r.origin = camPos;
+	Sphere s;
+	s.position = float3(0,-5,0);
+	s.radius = 5.f;
+	s.color = float3(1,0,0);
+	float4 tSPos = mul(float4(s.position,1.f), WVP);
+	s.position = tSPos.xyz;
 
 	float screenSpaceX = ((((float)threadID.x/screenWidth)  *2) - 1.0f);
 	float screenSpaceY = (((1.0f -((float)threadID.y/screenHeight)) * 2) - 1.0f);
 
-	float4 test = float4(screenSpaceX, screenSpaceY, 1,1);
-	test = mul(test, projMatInv);
+	float4 screenPoint = float4(screenSpaceX, screenSpaceY, 1,1);
+	screenPoint = mul(screenPoint, projMatInv);
 
-	test /= test.w;
-	//test = mul(test, viewMatInv);
+	screenPoint /= screenPoint.w;
+	screenPoint = mul(screenPoint, viewMatInv);
 
-	float3 dir = test.xyz - camPos;
+	float3 dir = screenPoint.xyz - camPos;
 	dir = normalize(dir);
 
-	dir.z = 0.0f;
-	output[threadID.xy] = float4(dir,1);
+	r.direction = dir;
+	//dir.z = 0.0f;
+	//output[threadID.xy] = float4(dir,1);
+	output[threadID.xy] = float4(RaySphereIntersect(r, s),1);
+}
+
+float3 RaySphereIntersect(Ray r, Sphere sp)
+{
+	float3 l = sp.position - r.origin;
+	float s = dot(l, r.direction);
+	float lsq = length(l)*length(l);
+	float rsq = sp.radius * sp.radius;
+
+	if( s < 0 && lsq > rsq )
+		return float3(0,0,0);
+	
+	float msq = lsq - (s*s);
+
+	if(msq > rsq)
+		return float3(0,0,0);
+
+	float q = sqrt(rsq - msq);
+	float t = 0.f;
+
+	if(lsq > rsq)
+		t = s - q;
+	else
+		t = s + q;
+	
+	return sp.color;
 }

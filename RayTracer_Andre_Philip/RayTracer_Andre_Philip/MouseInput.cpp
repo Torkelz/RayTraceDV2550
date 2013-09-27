@@ -25,8 +25,8 @@ MouseInput::MouseInput( HWND ghWnd, Camera* p_camera, int wndWidth, int wndHeigh
 	pt.x			= wndWidth / 2;
 	pt.y			= wndHeight / 2;
 
-	ClientToScreen(ghWnd, &pt);
-
+	//ClientToScreen(ghWnd, &pt);
+	ScreenToClient(ghWnd, &pt);
 	setCenterPos(pt);
 }
 

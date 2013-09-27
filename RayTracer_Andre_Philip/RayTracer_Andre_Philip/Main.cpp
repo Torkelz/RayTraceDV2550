@@ -16,6 +16,7 @@ struct cBufferdata
 {
 	D3DXMATRIX	viewMat;
 	D3DXMATRIX	projMatInv;
+	D3DXMATRIX  WVP;
 	D3DXVECTOR3	camPos;
 	int			screenWidth;
 	int			screenHeight;
@@ -44,7 +45,7 @@ MouseInput*				g_mouseInput			= NULL;
 Buffer*					g_cBuffer				= NULL;
 
 cBufferdata				g_cData;
-float					g_cameraSpeed			= 200.f;
+float					g_cameraSpeed			= 50.f;
 
 int g_Width, g_Height;
 
@@ -167,7 +168,7 @@ HRESULT Init()
 	//BEGIN OF OWN CODE
 
 	g_camera = new Camera(D3DXVECTOR3(0,0,0));
-	g_camera->createProjectionMatrix(0.25f*PI, (float)g_Width/g_Height, 1.0f, 1000.0f);
+	g_camera->createProjectionMatrix(0.4f*PI, (float)g_Width/g_Height, 1.0f, 1000.0f);
 	g_camera->setViewMatrix(g_camera->getPosition());
 	g_mouseInput = new MouseInput(g_hWnd, g_camera, g_Width, g_Height);
 
@@ -181,7 +182,7 @@ HRESULT Init()
 	D3DXMatrixInverse(&viewInv,NULL, &g_camera->getViewMatrix());
 	D3DXMATRIX projInv;
 	D3DXMatrixInverse(&projInv,NULL, &g_camera->getProjectionMatrix());
-
+	g_cData.WVP = g_camera->getViewMatrix() * g_camera->getProjectionMatrix();
 	g_cData.projMatInv = projInv;
 	g_cData.viewMat = viewInv;
 	g_cData.screenHeight = g_Height;
@@ -192,7 +193,7 @@ HRESULT Init()
 	desc.elementSize = sizeof(cBufferdata);
 	desc.numElements = 1;
 	desc.type = CONSTANT_BUFFER_CS;
-	desc.usage = BUFFER_CPU_WRITE;
+	desc.usage = BUFFER_DEFAULT;
 
 	g_cBuffer->init(g_Device, g_DeviceContext, desc);
 	g_DeviceContext->UpdateSubresource(g_cBuffer->getBufferPointer(), 0, NULL, &g_cData, 0, 0);
@@ -234,7 +235,7 @@ HRESULT Update(float deltaTime)
 	D3DXMatrixInverse(&viewInv,NULL, &g_camera->getViewMatrix());
 	D3DXMATRIX projInv;
 	D3DXMatrixInverse(&projInv,NULL, &g_camera->getProjectionMatrix());
-
+	g_cData.WVP = g_camera->getViewMatrix() * g_camera->getProjectionMatrix();
 	g_cData.projMatInv = projInv;
 	g_cData.viewMat = viewInv;
 
