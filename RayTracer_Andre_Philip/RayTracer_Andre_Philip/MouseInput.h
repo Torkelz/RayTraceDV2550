@@ -49,5 +49,7 @@ private:
 	bool			fps;
 	HWND			mhWnd;
 	Camera*			m_camera;
+	int				winHeight;
+	int				winWidth;
 };
 #endif MOUSEINPUT_H

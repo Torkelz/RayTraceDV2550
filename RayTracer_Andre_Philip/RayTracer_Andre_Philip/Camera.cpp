@@ -87,8 +87,8 @@ void Camera::setViewMatrix(D3DXVECTOR3 pPos)
 
 	mCameraPos = pPos;
 
-	mPitch = 40*(PI/180);
-	mYaw = 270*(PI/180);
+	//mPitch = 40*(PI/180);
+	//mYaw = 270*(PI/180);
 
 	D3DXMATRIX R;
 

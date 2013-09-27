@@ -16,17 +16,19 @@ MouseInput::MouseInput( HWND ghWnd, Camera* p_camera, int wndWidth, int wndHeigh
 	dx = 0;
 	dy = 0;
 
-	mXScale = ( (2 * PI) / (wndWidth) );
-	mYScale = ( (PI / 3) / wndHeight );
+	winHeight = wndHeight;
+	winWidth = wndWidth;
+
+	mXScale = ( (2 * PI) / (winWidth) );
+	mYScale = ( (PI / 3) / winHeight );
 
 	m_camera = p_camera;
 
 	POINT pt;
-	pt.x			= wndWidth / 2;
-	pt.y			= wndHeight / 2;
+	pt.x			= winWidth / 2;
+	pt.y			= winHeight / 2;
 
-	//ClientToScreen(ghWnd, &pt);
-	ScreenToClient(ghWnd, &pt);
+	ClientToScreen(ghWnd, &pt);
 	setCenterPos(pt);
 }
 
@@ -42,7 +44,12 @@ void MouseInput::rawUpdate(RAWINPUT* raw)
 
 void MouseInput::moveCursorToCenter(int p_width, int p_height)
 {
-	SetCursorPos((int)(p_width * 0.5f), (int)(p_height * 0.5f  )); 
+	POINT pt;
+	pt.x			= winWidth / 2;
+	pt.y			= winHeight / 2;
+	ClientToScreen(mhWnd, &pt);
+	SetCursorPos(pt.x, pt.y); 
+	//SetCursorPos((int)(p_width * 0.5f), (int)(p_height * 0.5f  )); 
 }
 
 void MouseInput::setCenterPos( POINT pCenterPos )

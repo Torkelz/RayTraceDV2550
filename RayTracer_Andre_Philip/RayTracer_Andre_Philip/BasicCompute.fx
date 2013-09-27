@@ -46,7 +46,7 @@ void main( uint3 threadID : SV_DispatchThreadID )
 	Ray r;
 	r.origin = camPos;
 	Sphere s;
-	s.position = float3(0,-5,0);
+	s.position = float3(0,0,0);
 	s.radius = 5.f;
 	s.color = float3(1,0,0);
 	float4 tSPos = mul(float4(s.position,1.f), WVP);

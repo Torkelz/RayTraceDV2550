@@ -167,7 +167,7 @@ HRESULT Init()
 	//END OF TEMPLATE CODE
 	//BEGIN OF OWN CODE
 
-	g_camera = new Camera(D3DXVECTOR3(0,0,0));
+	g_camera = new Camera(D3DXVECTOR3(0,0,-10));
 	g_camera->createProjectionMatrix(0.4f*PI, (float)g_Width/g_Height, 1.0f, 1000.0f);
 	g_camera->setViewMatrix(g_camera->getPosition());
 	g_mouseInput = new MouseInput(g_hWnd, g_camera, g_Width, g_Height);
@@ -264,8 +264,10 @@ HRESULT Render(float deltaTime)
 	sprintf_s(
 		title,
 		sizeof(title),
-		"BTH - DirectCompute DEMO - Dispatch time: %f CamPos %d,%d,%d",
-		g_Timer->GetTime(), (int)g_camera->getPosition().x,(int)g_camera->getPosition().y,(int)g_camera->getPosition().z
+		"BTH - DirectCompute DEMO - Dispatch time: %f CamPos %d,%d,%d, LookAt: %f,%f,%f, MPos: %d,%d",
+		g_Timer->GetTime(), (int)g_camera->getPosition().x,(int)g_camera->getPosition().y,(int)g_camera->getPosition().z,
+		g_camera->getLookAt().x, g_camera->getLookAt().y, g_camera->getLookAt().z,
+		g_mouseInput->getPosition().x, g_mouseInput->getPosition().y
 	);
 	SetWindowText(g_hWnd, title);
 

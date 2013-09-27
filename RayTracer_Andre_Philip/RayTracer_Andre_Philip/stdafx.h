@@ -1,7 +1,7 @@
 #ifndef _STDAFX__H
 #define _STDAFX__H
 
-#pragma warning disable 4005
+#pragma warning (disable : 4005)
 
 #include <windows.h>
 #include <D3D11.h>
