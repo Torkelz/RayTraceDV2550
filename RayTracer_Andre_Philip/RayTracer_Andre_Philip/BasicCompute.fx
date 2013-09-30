@@ -9,15 +9,20 @@ struct Sphere
 {
 	float3 position;
 	float3 color;
-	float	radius;
+	float  radius;
 };
 
+struct PointLight
+{
+	float3 position;
+	float3 color;
+};
 
 cbuffer cBufferdata : register(b0)
 {
 	matrix		viewMatInv;
 	matrix		projMatInv;
-	matrix		WVP;
+	float4x4	WVP;
 	float3		camPos;
 	int			screenWidth;
 	int			screenHeight;
@@ -32,6 +37,7 @@ struct Ray
 };
 RWTexture2D<float4> output : register(u0);
 //Methods
+float3 LightSourceCalc(float3 pStart, float3 pLight);
 float3 RaySphereIntersect(Ray r, Sphere s);
 
 //[numthreads(32, 32, 1)]
@@ -49,8 +55,6 @@ void main( uint3 threadID : SV_DispatchThreadID )
 	s.position = float3(0,0,0);
 	s.radius = 5.f;
 	s.color = float3(1,0,0);
-	float4 tSPos = mul(float4(s.position,0.f), WVP); //Was 1 before and it acted wired... 
-	s.position = tSPos.xyz;
 
 	float screenSpaceX = ((((float)threadID.x/screenWidth)  *2) - 1.0f);
 	float screenSpaceY = (((1.0f -((float)threadID.y/screenHeight)) * 2) - 1.0f);
@@ -65,7 +69,8 @@ void main( uint3 threadID : SV_DispatchThreadID )
 	dir = normalize(dir);
 
 	r.direction = dir;
-	//dir.z = 0.0f;
+	dir.z = 0.0f;
+
 	//output[threadID.xy] = float4(dir,1);
 	output[threadID.xy] = float4(RaySphereIntersect(r, s),1);
 }
@@ -94,4 +99,9 @@ float3 RaySphereIntersect(Ray r, Sphere sp)
 		t = s + q;
 	
 	return sp.color;
+}
+
+float3 LightSourceCalc(Ray r, PointLight l);
+{
+
 }

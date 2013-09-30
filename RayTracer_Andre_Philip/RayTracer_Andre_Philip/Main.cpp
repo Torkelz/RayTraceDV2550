@@ -236,7 +236,8 @@ HRESULT Update(float deltaTime)
 	D3DXMatrixInverse(&viewInv,NULL, &g_camera->getViewMatrix());
 	D3DXMATRIX projInv;
 	D3DXMatrixInverse(&projInv,NULL, &g_camera->getProjectionMatrix());
-	g_cData.WVP = g_camera->getViewMatrix() * g_camera->getProjectionMatrix();
+	D3DXMATRIX WVP = g_camera->getViewMatrix() * g_camera->getProjectionMatrix();
+	g_cData.WVP = WVP;
 	g_cData.projMatInv = projInv;
 	g_cData.viewMat = viewInv;
 
