@@ -121,17 +121,7 @@ HRESULT Buffer::init(ID3D11Device* p_pDevice, ID3D11DeviceContext* p_pDeviceCont
 	bufferDesc.ByteWidth = p_refInitDesc.numElements * p_refInitDesc.elementSize;
 
 	//set at least 16 bytes
-	if(bufferDesc.ByteWidth < 16)
-		bufferDesc.ByteWidth = 16;
-	else
-	{
-		float temp = bufferDesc.ByteWidth % 16;
-		if(temp > 0.f)
-		{
-			int t = bufferDesc.ByteWidth / 16;
-			bufferDesc.ByteWidth = (t+1) * 16;
-		}
-	}
+	bufferDesc.ByteWidth = bufferDesc.ByteWidth + (16 - bufferDesc.ByteWidth % 16);
 
 	HRESULT hr = S_OK;
 	if(p_refInitDesc.initData)

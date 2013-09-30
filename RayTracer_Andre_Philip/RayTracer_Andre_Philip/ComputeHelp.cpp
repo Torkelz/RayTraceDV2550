@@ -228,7 +228,7 @@ ID3D11UnorderedAccessView* ComputeWrap::CreateBufferUAV(ID3D11Buffer* pBuffer)
 	else if(descBuf.MiscFlags & D3D11_RESOURCE_MISC_BUFFER_STRUCTURED)
     {
         // This is a Structured Buffer
-        desc.Format = DXGI_FORMAT_UNKNOWN;      // Format must be must be DXGI_FORMAT_UNKNOWN, when creating a View of a Structured Buffer
+        desc.Format = DXGI_FORMAT_UNKNOWN;      // Format must be DXGI_FORMAT_UNKNOWN, when creating a View of a Structured Buffer
         desc.Buffer.NumElements = descBuf.ByteWidth / descBuf.StructureByteStride; 
     }
 	else

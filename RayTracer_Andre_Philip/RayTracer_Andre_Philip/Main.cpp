@@ -12,6 +12,7 @@
 
 #include "ComputeHelp.h"
 #include "D3D11Timer.h"
+
 struct cBufferdata
 {
 	D3DXMATRIX	viewMat;
@@ -23,29 +24,43 @@ struct cBufferdata
 	float		fovX;
 	float		fovY;
 };
+
+struct Vertex
+{
+	D3DXVECTOR3 position;
+	D3DXVECTOR3 color;
+	Vertex(D3DXVECTOR3 _position, D3DXVECTOR3 _color)
+	{
+		position = _position;
+		color = _color;
+	}
+};
+
 //--------------------------------------------------------------------------------------
 // Global Variables
 //--------------------------------------------------------------------------------------
-HINSTANCE				g_hInst					= NULL;  
-HWND					g_hWnd					= NULL;
+HINSTANCE					g_hInst					= NULL;  
+HWND						g_hWnd					= NULL;
 
-IDXGISwapChain*         g_SwapChain				= NULL;
-ID3D11Device*			g_Device				= NULL;
-ID3D11DeviceContext*	g_DeviceContext			= NULL;
+IDXGISwapChain*				g_SwapChain				= NULL;
+ID3D11Device*				g_Device				= NULL;
+ID3D11DeviceContext*		g_DeviceContext			= NULL;
 
-ID3D11UnorderedAccessView*  g_BackBufferUAV		= NULL;  // compute output
+ID3D11UnorderedAccessView*  g_BackBufferUAV			= NULL;  // compute output
 
-ComputeWrap*			g_ComputeSys			= NULL;
-ComputeShader*			g_ComputeShader			= NULL;
+ComputeWrap*				g_ComputeSys			= NULL;
+ComputeShader*				g_ComputeShader			= NULL;
+ComputeBuffer*				g_ObjectBuffer			= NULL;
 
-D3D11Timer*				g_Timer					= NULL;
 
-Camera*					g_camera				= NULL;
-MouseInput*				g_mouseInput			= NULL;
-Buffer*					g_cBuffer				= NULL;
+D3D11Timer*					g_Timer					= NULL;
 
-cBufferdata				g_cData;
-float					g_cameraSpeed			= 50.f;
+Camera*						g_camera				= NULL;
+MouseInput*					g_mouseInput			= NULL;
+Buffer*						g_cBuffer				= NULL;
+
+cBufferdata					g_cData;
+float						g_cameraSpeed			= 50.f;
 
 int g_Width, g_Height;
 
@@ -199,6 +214,19 @@ HRESULT Init()
 	g_DeviceContext->UpdateSubresource(g_cBuffer->getBufferPointer(), 0, NULL, &g_cData, 0, 0);
 	g_cBuffer->apply(0);
 
+	Vertex plane[] = 
+	{
+		Vertex(D3DXVECTOR3(-5, 0, 15), D3DXVECTOR3(1,0,0) ),
+		Vertex(D3DXVECTOR3(-5, 10, 15), D3DXVECTOR3(1,0,0) ),
+		Vertex(D3DXVECTOR3(5, 0, 15), D3DXVECTOR3(1,0,0) ),
+		Vertex(D3DXVECTOR3(-5, 10, 15), D3DXVECTOR3(1,0,0) ),
+		Vertex(D3DXVECTOR3(5, 10, 15), D3DXVECTOR3(1,0,0) ),
+		Vertex(D3DXVECTOR3(5, 0, 15), D3DXVECTOR3(1,0,0) )
+	};
+
+
+	g_ObjectBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(Vertex),sizeof(plane)/sizeof(Vertex), true, false, &plane,false, "Structured Buffer:Triangle");
+
 	return S_OK;
 }
 
@@ -248,10 +276,13 @@ HRESULT Render(float deltaTime)
 {
 	g_DeviceContext->UpdateSubresource(g_cBuffer->getBufferPointer(), 0, NULL, &g_cData, 0, 0);
 	g_cBuffer->apply(0);
-
+	
+	ID3D11ShaderResourceView* bufftri[] = {g_ObjectBuffer->GetResourceView()};
+	g_DeviceContext->CSSetShaderResources(0,1,bufftri);
 	ID3D11UnorderedAccessView* uav[] = { g_BackBufferUAV };
 	g_DeviceContext->CSSetUnorderedAccessViews(0, 1, uav, NULL);
-
+	
+	
 	g_ComputeShader->Set();
 	g_Timer->Start();
 	g_DeviceContext->Dispatch( 25, 25, 1 );
