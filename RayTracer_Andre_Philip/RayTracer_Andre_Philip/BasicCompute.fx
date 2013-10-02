@@ -32,6 +32,7 @@ struct PointLight
 	float4 color;
 	float4 diffuse;
 	float4 ambient;
+	float4 specular;
 };
 
 cbuffer cBufferdata : register(c0)
@@ -44,6 +45,8 @@ cbuffer cBufferdata : register(c0)
 	int			screenHeight;
 	float		fovX;
 	float		fovY;
+	PointLight  lights[10];
+	int			nrLights;
 };
 
 struct Ray
@@ -70,10 +73,11 @@ void main( uint3 threadID : SV_DispatchThreadID,
 		s.radius = 5.f;
 		s.color = float3(1,0,0);
 
-		pl.position = float3(0,10,-10);
+		pl.position = float3(-10,0,-10);
 		pl.color	= float4(1,1,1,1);
 		pl.diffuse	= float4(1,1,1,1);
 		pl.ambient	= float4(0.0f,0,0,1);
+		pl.specular = float4(0,0,0,1);
 
 		HitData h;
 		h.color = float3(0,0,0);
@@ -113,7 +117,16 @@ void main( uint3 threadID : SV_DispatchThreadID,
 	if(h.distance < 0)
 		output[threadID.xy] = float4(h.color,1);
 	else
-		output[threadID.xy] = float4(h.color,1) * LightSourceCalc(r, h, pl);
+	{
+		float4 t;
+		/*for(int i = 0; i < nrLights;i++)
+		{
+			t *=  LightSourceCalc(r, h, lights[i]);
+		}*/
+		//t /= nrLights;
+		t =  LightSourceCalc(r, h, pl);
+		output[threadID.xy] = float4(h.color,1) * t;
+	}
 }
 
 HitData RaySphereIntersect(Ray r, Sphere sp, HitData h)
@@ -191,15 +204,30 @@ HitData RayTriangleIntersection(Ray r, float3 p0, float3 p1, float3 p2, HitData 
 
 float4 LightSourceCalc(Ray r, HitData h, PointLight l)
 {
-	float3 objectPos = r.origin + r.direction * h.distance;
+	 float3 lightDir = normalize(r.origin + r.direction*h.distance - l.position);
+	float3 objectPos = r.origin + r.direction*h.distance;
+  // Note: Non-uniform scaling not supported
+  float diffuseLighting = saturate(dot(h.normal, -lightDir)); // per pixel diffuse lighting
+  float LightDistanceSquared = pow(length(l.position - objectPos),2);
+  // Introduce fall-off of light intensity
+  diffuseLighting *= (LightDistanceSquared / dot(l.position - objectPos, l.position - objectPos));
+ 
+  // Using Blinn half angle modification for perofrmance over correctness
+  float3 hk = normalize(normalize(r.origin - objectPos) - lightDir);
+ 
+  float specLighting = pow(saturate(dot(hk, h.normal)), l.specular);
+ 
+  return float4(saturate(l.ambient +(l.diffuse * diffuseLighting * 0.6) + (l.specular * specLighting * 0.5)));
+
+	/*float3 objectPos = r.origin + r.direction * h.distance;
 	float3 sNormal = normalize( h.normal );
-	float3 lightDir = -normalize(objectPos - l.position);
+	float3 lightDir = normalize(objectPos - l.position);
 	float3 view = normalize(r.direction);
-	float4 diff = saturate(dot(sNormal, lightDir));
+	float4 diff = saturate(dot(sNormal, -lightDir));
 
 	float3 reflect = normalize (2.0f*diff*sNormal-lightDir);
 	float4 specular = pow(saturate(dot(reflect, view)),10);
 	
 
-	return l.ambient + l.diffuse * diff + specular;
+	return l.ambient + l.diffuse * diff + specular;*/
 }

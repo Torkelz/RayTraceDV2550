@@ -23,6 +23,7 @@
     <ClInclude Include="Camera.h" />
     <ClInclude Include="ComputeHelp.h" />
     <ClInclude Include="D3D11Timer.h" />
+    <ClInclude Include="Main.h" />
     <ClInclude Include="MouseInput.h" />
     <ClInclude Include="stdafx.h" />
   </ItemGroup>
