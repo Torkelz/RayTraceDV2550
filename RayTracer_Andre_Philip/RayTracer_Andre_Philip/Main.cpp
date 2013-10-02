@@ -30,7 +30,7 @@ ID3D11UnorderedAccessView*  g_BackBufferUAV			= NULL;  // compute output
 ComputeWrap*				g_ComputeSys			= NULL;
 ComputeShader*				g_ComputeShader			= NULL;
 ComputeBuffer*				g_ObjectBuffer			= NULL;
-
+ComputeBuffer*				g_lightBuffer			= NULL;
 
 D3D11Timer*					g_Timer					= NULL;
 
@@ -184,9 +184,6 @@ HRESULT Init()
 	g_cData.screenHeight = g_Height;
 	g_cData.screenWidth = g_Width;
 
-	g_cData.nrLights = g_nrLights;
-	//memcpy(g_cData.lights ,g_lights, 0);
-
 	BufferInitDesc desc;
 	desc.initData = &g_cData;
 	desc.elementSize = sizeof(cBufferdata);
@@ -211,16 +208,8 @@ HRESULT Init()
 
 	g_ObjectBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(Vertex),sizeof(plane)/sizeof(Vertex), true, false, &plane,false, "Structured Buffer:Triangle");
 
-	/*BufferInitDesc desc;
-	desc.initData = &g_lights;
-	desc.elementSize = sizeof(PointLight);
-	desc.numElements = sizeof(g_lights)/sizeof(PointLight);
-	desc.type = CONSTANT_BUFFER_CS;
-	desc.usage = BUFFER_DEFAULT;
+	g_lightBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(PointLight),sizeof(g_lights)/sizeof(PointLight), true, false, &g_lights,true, "Structured Buffer:Light");
 
-	g_lightBuffer->init(g_Device, g_DeviceContext, desc);
-	g_DeviceContext->UpdateSubresource(g_lightBuffer->getBufferPointer(), 0, NULL, &g_lights, 0, 0);
-	g_lightBuffer->apply(0);*/
 
 	return S_OK;
 }
@@ -265,24 +254,20 @@ HRESULT Update(float deltaTime)
 	g_cData.viewMat = viewInv;
 
 
-	//for(int i = 0; i < 8; i++)
-	//{
-	//	if(i%2 == 0)
-	//	{
-	//		g_lights[i].position.z += g_lightSpeed * deltaTime;
-	//	}
-	//	else
-	//	{
-	//		g_lights[i].position.z -= g_lightSpeed * deltaTime;
-	//	}
-	//}
-	//if(g_lights[0].position.z < -10 || g_lights[0].position.z > 10)
-	//{
-	//	g_lightSpeed *= -1;
-	//}
-	for(int i = 0; i < g_nrLights; i++)
+	for(int i = 0; i < 10; i++)
 	{
-		g_cData.lights[i] = g_lights[i];
+		if(i%2 == 0)
+		{
+			g_lights[i].position.y += g_lightSpeed * deltaTime;
+		}
+		else
+		{
+			g_lights[i].position.y -= g_lightSpeed * deltaTime;
+		}
+	}
+	if(g_lights[0].position.y < -10 || g_lights[0].position.y > 10)
+	{
+		g_lightSpeed *= -1;
 	}
 	//memcpy(g_cData.lights ,g_lights, sizeof(PointLight)*sizeof(g_lights)/sizeof(PointLight));
 	return S_OK;
@@ -292,9 +277,17 @@ HRESULT Render(float deltaTime)
 {
 	g_DeviceContext->UpdateSubresource(g_cBuffer->getBufferPointer(), 0, NULL, &g_cData, 0, 0);
 	g_cBuffer->apply(0);
-	
+	g_lightBuffer->CopyToStaging();
+	PointLight* lightPointer =  g_lightBuffer->Map<PointLight>();
+	g_lightBuffer->CopyToStaging();
+	memcpy(lightPointer, g_lights, sizeof(PointLight)*sizeof(g_lights)/sizeof(PointLight));
+	g_lightBuffer->Unmap();
+	g_lightBuffer->CopyToStaging();
+
 	ID3D11ShaderResourceView* bufftri[] = {g_ObjectBuffer->GetResourceView()};
 	g_DeviceContext->CSSetShaderResources(0,1,bufftri);
+	ID3D11ShaderResourceView* lightBuff[] = {g_lightBuffer->GetResourceView()};
+	g_DeviceContext->CSSetShaderResources(1,1,lightBuff);
 	ID3D11UnorderedAccessView* uav[] = { g_BackBufferUAV };
 	g_DeviceContext->CSSetUnorderedAccessViews(0, 1, uav, NULL);
 	
