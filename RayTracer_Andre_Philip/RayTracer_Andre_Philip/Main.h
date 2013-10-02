@@ -28,18 +28,18 @@ struct cBufferdata
 	int			screenHeight;
 	float		fovX;
 	float		fovY;
-	PointLight  lights[10];
-	int			nrLights;
 };
 
 struct Vertex
 {
 	D3DXVECTOR3 position;
 	D3DXVECTOR3 color;
-	Vertex(D3DXVECTOR3 _position, D3DXVECTOR3 _color)
+	int id;
+	Vertex(D3DXVECTOR3 _position, D3DXVECTOR3 _color, int _id)
 	{
 		position = _position;
 		color = _color;
+		id = _id;
 	}
 };
 

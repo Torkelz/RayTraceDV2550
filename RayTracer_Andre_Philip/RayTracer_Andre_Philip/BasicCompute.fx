@@ -10,12 +10,14 @@ struct Sphere
 	float3 position;
 	float3 color;
 	float  radius;
+	int id;
 };
 
 struct Vertex
 {
 	float3 position;
 	float3 color;
+	int id;
 	//More to come!!
 };
 
@@ -24,6 +26,7 @@ struct HitData
 	float3 color;
 	float distance;
 	float3 normal;
+	int	id;
 };
 
 struct PointLight
@@ -58,7 +61,7 @@ StructuredBuffer<PointLight> pl : register(t1);
 
 //Methods
 float4 LightSourceCalc(Ray r, HitData h, PointLight l);
-HitData RayTriangleIntersection(Ray r, float3 p0, float3 p1, float3 p2, HitData h);
+HitData RayTriangleIntersection(Ray r, float3 p0, float3 p1, float3 p2, int id, HitData h);
 HitData RaySphereIntersect(Ray r, Sphere s, HitData h);
 
 groupshared Sphere s;
@@ -72,6 +75,7 @@ void main( uint3 threadID : SV_DispatchThreadID,
 		s.position = float3(0,0,0);
 		s.radius = 5.f;
 		s.color = float3(1,0,0);
+		s.id = 0;
 
 		/*pl.position = float3(-10,0,-10);
 		pl.color	= float4(1,1,1,1);
@@ -83,6 +87,7 @@ void main( uint3 threadID : SV_DispatchThreadID,
 		h.color = float3(0,0,0);
 		h.distance = 1000.0f;
 		h.normal = float3(0,0,0);
+		h.id = -1;
 	//}
 	//GroupMemoryBarrierWithGroupSync();
 	Ray r;
@@ -107,24 +112,45 @@ void main( uint3 threadID : SV_DispatchThreadID,
 	int i;
 	for(i = 0; i < 6; i+=3)
 	{
-		h = RayTriangleIntersection(r,triangles[i].position, triangles[i+1].position, triangles[i+2].position, h);
+		h = RayTriangleIntersection(r,triangles[i].position, triangles[i+1].position, triangles[i+2].position, triangles[i].id, h);
 	}
 
 	//h = RayTriangleIntersection(r,float3(-5,-5,0), float3(-5,5,0), float3(5,-5,0));
 	
 
 	output[threadID.xy] = float4(dir,1);
-	if(h.distance < 0)
+	if(h.id == -1)
 		output[threadID.xy] = float4(h.color,1);
 	else
 	{
+//		Ray L; Tänka på att inte skriva till texturen sen!!!! utan att eventuellt kolla om de ska göras.
+		r.origin = r.origin + r.direction * h.distance;
+		HitData hh;
+		hh.color = float3(0,0,0);
+		hh.distance = 1000.0f;
+		hh.normal = float3(0,0,0);
+		hh.id = -1;
+		
+		//L.origin = r.origin + r.direction * h.distance;
 
 		float4 t;
 		for(int i = 0; i < 10;i++)
 		{
+			r.direction = normalize(r.origin - pl[i].position);
 
+			////HitData h;
+			//hh.distance = 1000.0f;
 
-			t +=  LightSourceCalc(r, h, pl[i]);
+			hh = RaySphereIntersect(r, s, hh);
+
+			int i;
+			for(i = 0; i < 6; i+=3)
+			{
+				hh = RayTriangleIntersection(r,triangles[i].position, triangles[i+1].position, triangles[i+2].position, triangles[i].id, hh);
+			}
+			
+			if(h.id == hh.id && hh.id == -1)
+				t +=  LightSourceCalc(r, h, pl[i]);
 		}
 		
 		//t =  LightSourceCalc(r, h, pl[9]);
@@ -135,7 +161,7 @@ void main( uint3 threadID : SV_DispatchThreadID,
 HitData RaySphereIntersect(Ray r, Sphere sp, HitData h)
 {
 	HitData lh;
-
+	lh.id = sp.id;
 	float3 l = sp.position - r.origin;
 	float s = dot(l, r.direction);
 	float lsq = length(l)*length(l);
@@ -167,10 +193,10 @@ HitData RaySphereIntersect(Ray r, Sphere sp, HitData h)
 		return h;
 }
 
-HitData RayTriangleIntersection(Ray r, float3 p0, float3 p1, float3 p2, HitData h)
+HitData RayTriangleIntersection(Ray r, float3 p0, float3 p1, float3 p2, int id, HitData h)
 {
 	HitData lh;
-	
+	lh.id = id;
 	float3 e1 = p1 - p0;
 	float3 e2 = p2 - p0;
 	float3 q = cross(r.direction, e2);
