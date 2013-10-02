@@ -118,9 +118,12 @@ void main( uint3 threadID : SV_DispatchThreadID,
 		output[threadID.xy] = float4(h.color,1);
 	else
 	{
+
 		float4 t;
 		for(int i = 0; i < 10;i++)
 		{
+
+
 			t +=  LightSourceCalc(r, h, pl[i]);
 		}
 		

@@ -277,12 +277,13 @@ HRESULT Render(float deltaTime)
 {
 	g_DeviceContext->UpdateSubresource(g_cBuffer->getBufferPointer(), 0, NULL, &g_cData, 0, 0);
 	g_cBuffer->apply(0);
-	g_lightBuffer->CopyToStaging();
+	
+	
 	PointLight* lightPointer =  g_lightBuffer->Map<PointLight>();
-	g_lightBuffer->CopyToStaging();
+
 	memcpy(lightPointer, g_lights, sizeof(PointLight)*sizeof(g_lights)/sizeof(PointLight));
 	g_lightBuffer->Unmap();
-	g_lightBuffer->CopyToStaging();
+	g_lightBuffer->CopyToResource();
 
 	ID3D11ShaderResourceView* bufftri[] = {g_ObjectBuffer->GetResourceView()};
 	g_DeviceContext->CSSetShaderResources(0,1,bufftri);
