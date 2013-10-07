@@ -1,13 +1,10 @@
+#ifndef PRIMARYCOMPUTE
+#define PRIMARYCOMPUTE
+#include "structsCompute.fx"
 
-//struct Ray
-//{
-//	float3 origin;
-//	float3 direction;
-//};
-
-//Ray CreateRay(uint3 thread, int screenWidth, int screenHeight, float3 camPos, matrix projMatInv, matrix viewMatInv)
-//{
-	/*Ray r;
+Ray CreateRay(uint3 thread, int screenWidth, int screenHeight, float3 camPos, matrix projMatInv, matrix viewMatInv)
+{
+	Ray r;
 	r.origin = camPos;
 
 	float screenSpaceX = ((((float)thread.x/screenWidth)  *2) - 1.0f);
@@ -24,5 +21,6 @@
 
 	r.direction = dir;
 
-	return r;*/
-//}
+	return r;
+}
+#endif // PRIMARYCOMPUTE

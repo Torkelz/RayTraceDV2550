@@ -60,5 +60,7 @@
   <ItemGroup>
     <FxCompile Include="BasicCompute.fx" />
     <FxCompile Include="PrimaryCompute.fx" />
+    <FxCompile Include="IntersectionCompute.fx" />
+    <FxCompile Include="structsCompute.fx" />
   </ItemGroup>
 </Project>
