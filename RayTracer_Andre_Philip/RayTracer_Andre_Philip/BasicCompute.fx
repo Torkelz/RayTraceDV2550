@@ -70,18 +70,13 @@ groupshared Sphere s;
 void main( uint3 threadID : SV_DispatchThreadID,
 		  uint groupID : SV_GroupIndex)
 {
+	float delta = 0.001f; //Moving the collision point a little bit out  from the object.
 	//if(groupID == 0)
 	//{
 		s.position = float3(0,0,0);
 		s.radius = 5.f;
 		s.color = float3(1,0,0);
 		s.id = 0;
-
-		/*pl.position = float3(-10,0,-10);
-		pl.color	= float4(1,1,1,1);
-		pl.diffuse	= float4(1,1,1,1);
-		pl.ambient	= float4(0.0f,0,0,1);
-		pl.specular = float4(0,0,0,1);*/
 
 		HitData h;
 		h.color = float3(0,0,0);
@@ -118,39 +113,42 @@ void main( uint3 threadID : SV_DispatchThreadID,
 	//h = RayTriangleIntersection(r,float3(-5,-5,0), float3(-5,5,0), float3(5,-5,0));
 	
 
-	output[threadID.xy] = float4(dir,1);
 	if(h.id == -1)
 		output[threadID.xy] = float4(h.color,1);
 	else
 	{
 //		Ray L; Tänka på att inte skriva till texturen sen!!!! utan att eventuellt kolla om de ska göras.
-		r.origin = r.origin + r.direction * h.distance;
-		HitData hh;
-		hh.color = float3(0,0,0);
-		hh.distance = 1000.0f;
-		hh.normal = float3(0,0,0);
-		hh.id = -1;
+		r.origin = r.origin + (r.direction *h.distance) + (h.normal * delta);
+		HitData shadowh;
+		shadowh.color = float3(0,0,0);
+		shadowh.distance = 1000.0f;
+		shadowh.normal = float3(0,0,0);
+		shadowh.id = -1;
 		
 		//L.origin = r.origin + r.direction * h.distance;
-
+		
 		float4 t;
-		for(int i = 0; i < 10;i++)
+		//t = float4(0.5,0.5,0.5,0.5);
+		int ps = 1;
+		for(int i = ps-1; i < ps+3;i++)
 		{
-			r.direction = normalize(r.origin - pl[i].position);
+			r.direction = normalize(pl[i].position - r.origin);
 
+			float distanceToLight = length(pl[i].position - r.origin);
 			////HitData h;
 			//hh.distance = 1000.0f;
 
-			hh = RaySphereIntersect(r, s, hh);
+			shadowh = RaySphereIntersect(r, s, shadowh);
 
-			int i;
-			for(i = 0; i < 6; i+=3)
+			int j;
+			for(j = 0; j < 6; j+=3)
 			{
-				hh = RayTriangleIntersection(r,triangles[i].position, triangles[i+1].position, triangles[i+2].position, triangles[i].id, hh);
+				shadowh = RayTriangleIntersection(r,triangles[j].position, triangles[j+1].position, triangles[j+2].position, triangles[j].id, shadowh);
 			}
 			
-			if(h.id == hh.id && hh.id == -1)
-				t +=  LightSourceCalc(r, h, pl[i]);
+			//if(h.id != hh.id )//&& hh.id == -1)
+			if(shadowh.id == -1 || distanceToLight < shadowh.distance)
+				t +=  float4(0.1,0.1,0.1,0.1);//LightSourceCalc(r, h, pl[i]);
 		}
 		
 		//t =  LightSourceCalc(r, h, pl[9]);
@@ -178,15 +176,16 @@ HitData RaySphereIntersect(Ray r, Sphere sp, HitData h)
 	float q = sqrt(rsq - msq);
 	float t = 0.f;
 
-	if(lsq > rsq)
+	//if(lsq > rsq)
+	if( s-q > 0.f )
 		t = s - q;
 	else
 		t = s + q;
 	
-	lh.color = sp.color;
+	
 	lh.distance = t;
 	lh.normal = normalize(r.origin + t*r.direction - sp.position);
-
+	lh.color = sp.color;
 	if(lh.distance < h.distance && lh.distance > 0.f)
 		return lh;
 	else
