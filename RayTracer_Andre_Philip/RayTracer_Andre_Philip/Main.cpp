@@ -293,7 +293,7 @@ HRESULT Render(float deltaTime)
 	g_DeviceContext->CSSetUnorderedAccessViews(0, 1, uav, NULL);
 	
 	
-	g_ComputeShader->Set();
+	
 	g_Timer->Start();
 	g_DeviceContext->Dispatch( 25, 25, 1 );
 	g_Timer->Stop();

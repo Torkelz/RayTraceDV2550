@@ -1,9 +1,6 @@
-//--------------------------------------------------------------------------------------
-// BasicCompute.fx
-// Direct3D 11 Shader Model 5.0 Demo
-// Copyright (c) Stefan Petersson, 2012
-//--------------------------------------------------------------------------------------
 #pragma pack_matrix(row_major)
+
+//#include "PrimaryCompute.fx"
 
 struct Sphere
 {
@@ -86,6 +83,8 @@ void main( uint3 threadID : SV_DispatchThreadID,
 	//}
 	//GroupMemoryBarrierWithGroupSync();
 	Ray r;
+	//r = CreateRay(threadID, screenWidth, screenHeight, camPos, projMatInv, viewMatInv);
+	//Ray r;
 	r.origin = camPos;
 
 	float screenSpaceX = ((((float)threadID.x/screenWidth)  *2) - 1.0f);
@@ -130,7 +129,7 @@ void main( uint3 threadID : SV_DispatchThreadID,
 		float4 t;
 		//t = float4(0.5,0.5,0.5,0.5);
 		int ps = 1;
-		for(int i = ps-1; i < ps+3;i++)
+		for(int i = 0; i < 10;i++)
 		{
 			r.direction = normalize(pl[i].position - r.origin);
 

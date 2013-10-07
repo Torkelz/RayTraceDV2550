@@ -59,5 +59,6 @@
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="BasicCompute.fx" />
+    <FxCompile Include="PrimaryCompute.fx" />
   </ItemGroup>
 </Project>
