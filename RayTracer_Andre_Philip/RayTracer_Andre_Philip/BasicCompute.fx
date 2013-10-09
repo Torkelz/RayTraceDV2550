@@ -53,6 +53,7 @@ void main( uint3 threadID : SV_DispatchThreadID,
 	// ########## INTERSECTION STAGE #########
 	h = RaySphereIntersect(r, s, h);
 	int i;
+	
 	for(i = 0; i < 36; i+=3)
 	{
 		h = RayTriangleIntersection(r,triangles[i].position, triangles[i+1].position, triangles[i+2].position,triangles[i].color ,triangles[i].id, h);
@@ -73,7 +74,7 @@ void main( uint3 threadID : SV_DispatchThreadID,
 		shadowh.color = float4(0,0,0,1);
 		shadowh.id = -1;
 		shadowh.normal = float3(0,0,0);
-
+		[unroll] //IF FPS PROBLEM REMOVE THIS
 		for(int i = 0; i < 10;i++)
 		{
 			//NULLIFY
@@ -107,6 +108,41 @@ void main( uint3 threadID : SV_DispatchThreadID,
 
 float3 LightSourceCalc(Ray r, HitData h, PointLight l)
 {
+	//float diffusePower = 1;
+	//float3 viewDir = float3(0,1,0);
+	//float specularPower = 0.2f; 
+ //   if( diffusePower > 0 )
+ //   {
+ //           float3 lightDir = l.position - r.origin; //3D position in space of the surface
+ //           float distance = length( lightDir );
+ //           lightDir = lightDir / distance; // = normalize( lightDir );
+ //           distance = distance * distance; //This line may be optimised using Inverse square root
+ //
+ //           //Intensity of the diffuse light. Saturate to keep within the 0-1 range.
+ //           float NdotL = dot( h.normal, lightDir );
+ //           float intensity = saturate( NdotL );
+ //
+ //           // Calculate the diffuse light factoring in light color, power and the attenuation
+ //           float3 Diffuse = intensity * l.diffuse * diffusePower / distance; 
+ //
+ //           //Calculate the half vector between the light vector and the view vector.
+ //           //This is faster than calculating the actual reflective vector.
+ //           float3 Blinn = normalize( lightDir + viewDir );
+ //
+ //           //Intensity of the specular light
+ //           float NdotBlinn = dot( h.normal, Blinn );
+ //           intensity = pow( saturate( NdotBlinn ), 0.2f );
+ //
+ //           //Sum up the specular light factoring
+ //           float3 Specular = intensity * l.specular * specularPower / distance; 
+	//		
+	//	return Specular * Diffuse;
+ //   }
+	//else
+	//{
+	//	return float3(0,0,0);
+	//}
+
 	float3 litColor = float3(0.0f, 0.0f, 0.0f);
 	
 	// The vector from the surface to the light.
