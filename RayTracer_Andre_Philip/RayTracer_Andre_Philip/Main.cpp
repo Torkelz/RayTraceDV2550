@@ -197,12 +197,12 @@ HRESULT Init()
 
 	Vertex plane[] = 
 	{
-		Vertex(D3DXVECTOR3(-5, 0, 15), D3DXVECTOR3(1,0,0), 1 ),
-		Vertex(D3DXVECTOR3(-5, 10, 15), D3DXVECTOR3(1,0,0), 1 ),
-		Vertex(D3DXVECTOR3(5, 0, 15), D3DXVECTOR3(1,0,0), 1 ),
-		Vertex(D3DXVECTOR3(-5, 10, 15), D3DXVECTOR3(1,0,0), 2 ),
-		Vertex(D3DXVECTOR3(5, 10, 15), D3DXVECTOR3(1,0,0), 2 ),
-		Vertex(D3DXVECTOR3(5, 0, 15), D3DXVECTOR3(1,0,0), 2 )
+		Vertex(D3DXVECTOR3(-10, 0, 15),  D3DXVECTOR4(0,1,0,1), 1 ),
+		Vertex(D3DXVECTOR3(-10, 20, 15), D3DXVECTOR4(0,1,0,1), 1 ),
+		Vertex(D3DXVECTOR3(10, 0, 15),   D3DXVECTOR4(0,1,0,1), 1 ),
+		Vertex(D3DXVECTOR3(-10, 20, 15), D3DXVECTOR4(0,1,0,1), 2 ),
+		Vertex(D3DXVECTOR3(10, 20, 15),  D3DXVECTOR4(0,1,0,1), 2 ),
+		Vertex(D3DXVECTOR3(10, 0, 15),   D3DXVECTOR4(0,1,0,1), 2 )
 	};
 
 
@@ -269,7 +269,6 @@ HRESULT Update(float deltaTime)
 	{
 		g_lightSpeed *= -1;
 	}
-	//memcpy(g_cData.lights ,g_lights, sizeof(PointLight)*sizeof(g_lights)/sizeof(PointLight));
 	return S_OK;
 }
 

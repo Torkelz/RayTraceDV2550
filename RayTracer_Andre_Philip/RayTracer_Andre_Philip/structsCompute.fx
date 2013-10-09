@@ -10,14 +10,14 @@ struct Ray
 struct Sphere
 {
 	float3 position;
-	float3 color;
+	float4 color;
 	float  radius;
 	int id;
 };
 
 struct HitData
 {
-	float3 color;
+	float4 color;
 	float distance;
 	float3 normal;
 	int	id;
@@ -26,18 +26,19 @@ struct HitData
 struct Vertex
 {
 	float3 position;
-	float3 color;
+	float4 color;
 	int id;
 	//More to come!!
 };
 
 struct PointLight
 {
-	float3 position;
+	float4 position;
 	float4 color;
 	float4 diffuse;
 	float4 ambient;
 	float4 specular;
+	float4 att;
 };
 
 #endif // STRUCTSCOMPUTE

@@ -5,7 +5,9 @@
 HitData RaySphereIntersect(Ray r, Sphere sp, HitData h)
 {
 	HitData lh;
+	lh.distance = -1.f;
 	lh.id = sp.id;
+	float deltaRange = 0.001f;
 	float3 l = sp.position - r.origin;
 	float s = dot(l, r.direction);
 	float lsq = length(l)*length(l);
@@ -21,27 +23,28 @@ HitData RaySphereIntersect(Ray r, Sphere sp, HitData h)
 
 	float q = sqrt(rsq - msq);
 	float t = 0.f;
-
-	//if(lsq > rsq)
-	if( s-q > 0.f )
+	
+	if(lsq > rsq)
+	{
 		t = s - q;
-	else
-		t = s + q;
-	
-	
-	lh.distance = t;
-	lh.normal = normalize(r.origin + t*r.direction - sp.position);
-	lh.color = sp.color;
-	if(lh.distance < h.distance && lh.distance > 0.f)
-		return lh;
+		lh.normal = normalize(r.origin + t*r.direction - sp.position);
+		lh.color = sp.color;
+		lh.distance = t;
+		if(lh.distance < h.distance || h.distance < 0.0f && lh.distance > deltaRange)
+			return lh;
+		else
+			return h;
+	}
 	else
 		return h;
 }
 
-HitData RayTriangleIntersection(Ray r, float3 p0, float3 p1, float3 p2, int id, HitData h)
+HitData RayTriangleIntersection(Ray r, float3 p0, float3 p1, float3 p2, float4 color, int id, HitData h)
 {
 	HitData lh;
 	lh.id = id;
+	lh.distance = -1.f;
+	float deltaRange = 0.001f;
 	float3 e1 = p1 - p0;
 	float3 e2 = p2 - p0;
 	float3 q = cross(r.direction, e2);
@@ -64,13 +67,13 @@ HitData RayTriangleIntersection(Ray r, float3 p0, float3 p1, float3 p2, int id, 
 		return h;
 	}
 	lh.distance = f*(dot(e2,Rr));
-	lh.color = float3(0,1,0);
+	lh.color = color;
 	float3 v1,v2;
 	v1 = p1-p0;
 	v2 = p2-p0;
 	lh.normal = normalize(cross(v1,v2));
 
-	if(lh.distance < h.distance && lh.distance > 0.f)
+	if(lh.distance < h.distance && lh.distance > 0.f || h.distance < 0.0f && lh.distance > deltaRange)
 		return lh;
 	else
 		return h;
