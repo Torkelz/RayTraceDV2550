@@ -42,7 +42,7 @@ HitData RaySphereIntersect(Ray r, Sphere sp, HitData h)
 HitData RayTriangleIntersection(Ray r, float3 p0, float3 p1, float3 p2, float4 color, int id, HitData h)
 {
 	HitData lh;
-	lh.id = id;
+	lh.id = -1;
 	lh.distance = -1.f;
 	float deltaRange = 0.001f;
 	float3 e1 = p1 - p0;
@@ -73,8 +73,11 @@ HitData RayTriangleIntersection(Ray r, float3 p0, float3 p1, float3 p2, float4 c
 	v2 = p2-p0;
 	lh.normal = normalize(cross(v1,v2));
 
-	if(lh.distance < h.distance && lh.distance > 0.f || h.distance < 0.0f && lh.distance > deltaRange)
+	if(lh.distance < h.distance && lh.distance > 0.f || h.distance < 0.0f && lh.distance > 0.f)
+	{
+		lh.id = id;
 		return lh;
+	}
 	else
 		return h;
 }

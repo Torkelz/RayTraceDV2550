@@ -37,6 +37,8 @@ struct Vertex
 	D3DXVECTOR3 position;
 	D3DXVECTOR4 color;
 	int id;
+	Vertex(){};
+
 	Vertex(D3DXVECTOR3 _position, D3DXVECTOR4 _color, int _id)
 	{
 		position = _position;

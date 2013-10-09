@@ -52,6 +52,7 @@ HRESULT             InitWindow( HINSTANCE hInstance, int nCmdShow );
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 HRESULT				Render(float deltaTime);
 HRESULT				Update(float deltaTime);
+Vertex*				CreateBox(int size, D3DXVECTOR3 center);
 
 char* FeatureLevelToString(D3D_FEATURE_LEVEL featureLevel)
 {
@@ -195,18 +196,9 @@ HRESULT Init()
 	g_DeviceContext->UpdateSubresource(g_cBuffer->getBufferPointer(), 0, NULL, &g_cData, 0, 0);
 	g_cBuffer->apply(0);
 
-	Vertex plane[] = 
-	{
-		Vertex(D3DXVECTOR3(-10, 0, 15),  D3DXVECTOR4(0,1,0,1), 1 ),
-		Vertex(D3DXVECTOR3(-10, 20, 15), D3DXVECTOR4(0,1,0,1), 1 ),
-		Vertex(D3DXVECTOR3(10, 0, 15),   D3DXVECTOR4(0,1,0,1), 1 ),
-		Vertex(D3DXVECTOR3(-10, 20, 15), D3DXVECTOR4(0,1,0,1), 2 ),
-		Vertex(D3DXVECTOR3(10, 20, 15),  D3DXVECTOR4(0,1,0,1), 2 ),
-		Vertex(D3DXVECTOR3(10, 0, 15),   D3DXVECTOR4(0,1,0,1), 2 )
-	};
+	Vertex* box = CreateBox(60,D3DXVECTOR3(0,0,0));
 
-
-	g_ObjectBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(Vertex),sizeof(plane)/sizeof(Vertex), true, false, &plane,false, "Structured Buffer:Triangle");
+	g_ObjectBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(Vertex),36, true, false, box,false, "Structured Buffer:Triangle");
 
 	g_lightBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(PointLight),sizeof(g_lights)/sizeof(PointLight), true, false, &g_lights,true, "Structured Buffer:Light");
 
@@ -254,7 +246,7 @@ HRESULT Update(float deltaTime)
 	g_cData.viewMat = viewInv;
 
 
-	for(int i = 0; i < 8; i++)
+	for(int i = 0; i < 10; i++)
 	{
 		if(i%2 == 0)
 		{
@@ -473,4 +465,70 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
 	}
 
 	return 0;
+}
+
+Vertex* CreateBox(int size, D3DXVECTOR3 center)
+{
+	Vertex* box = new Vertex[36];
+	D3DXVECTOR4 color;
+	D3DXVECTOR3 vert0 = center + D3DXVECTOR3(-1.0*size, -1.0*size, -1.0*size); // 0 --- LowerLeftFront
+	D3DXVECTOR3 vert1 = center + D3DXVECTOR3( 1.0*size, -1.0*size, -1.0*size); // 1 +-- LowerRightFront
+	D3DXVECTOR3 vert2 = center + D3DXVECTOR3(-1.0*size,  1.0*size, -1.0*size); // 2 -+- UpperLeftFront
+	D3DXVECTOR3 vert3 = center + D3DXVECTOR3( 1.0*size,  1.0*size, -1.0*size); // 3 ++- UpperRightFront
+	D3DXVECTOR3 vert4 = center + D3DXVECTOR3(-1.0*size, -1.0*size,  1.0*size); // 4 --+ LowerLeftBack
+	D3DXVECTOR3 vert5 = center + D3DXVECTOR3( 1.0*size, -1.0*size,  1.0*size); // 5 +-+ LowerRightBack
+	D3DXVECTOR3 vert6 = center + D3DXVECTOR3(-1.0*size,  1.0*size,  1.0*size); // 6 -++ UpperLeftBack
+	D3DXVECTOR3 vert7 = center + D3DXVECTOR3( 1.0*size,  1.0*size,  1.0*size); // 7 +++ UpperRightBack
+
+	// Back
+	color = D3DXVECTOR4(0,1,0,1);
+	box[0] = Vertex(vert4, color, 1);
+	box[1] = Vertex(vert6, color, 1);
+	box[2] = Vertex(vert5, color, 1);
+	box[3] = Vertex(vert6, color, 2);
+	box[4] = Vertex(vert7, color, 2);
+	box[5] = Vertex(vert5, color, 2);
+
+	// Front
+	box[6] = Vertex(vert1, color, 3);
+	box[7] = Vertex(vert3, color, 3);
+	box[8] = Vertex(vert0, color, 3);
+	box[9] = Vertex(vert3, color, 4);
+	box[10] = Vertex(vert2, color, 4);
+	box[11] = Vertex(vert0, color, 4);
+
+	// Top
+	box[12] = Vertex(vert3, color, 5);
+	box[13] = Vertex(vert7, color, 5);
+	box[14] = Vertex(vert2, color, 5);
+	box[15] = Vertex(vert7, color, 6);
+	box[16] = Vertex(vert6, color, 6);
+	box[17] = Vertex(vert2, color, 6);
+
+	// Bottom
+	box[18] = Vertex(vert0, color, 7);
+	box[19] = Vertex(vert4, color, 7);
+	box[20] = Vertex(vert1, color, 7);
+	box[21] = Vertex(vert4, color, 8);
+	box[22] = Vertex(vert5, color, 8);
+	box[23] = Vertex(vert1, color, 8);
+
+	// Right
+	box[24] = Vertex(vert5, color, 9);
+	box[25] = Vertex(vert7, color, 9);
+	box[26] = Vertex(vert1, color, 9);
+	box[27] = Vertex(vert7, color, 10);
+	box[28] = Vertex(vert3, color, 10);
+	box[29] = Vertex(vert1, color, 10);
+
+	// Left
+	box[30] = Vertex(vert0, color, 11);
+	box[31] = Vertex(vert2, color, 11);
+	box[32] = Vertex(vert4, color, 11);
+	box[33] = Vertex(vert2, color, 12);
+	box[34] = Vertex(vert6, color, 12);
+	box[35] = Vertex(vert4, color, 12);
+
+
+	return box;
 }

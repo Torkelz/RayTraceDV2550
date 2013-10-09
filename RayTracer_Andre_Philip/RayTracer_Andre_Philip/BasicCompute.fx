@@ -31,7 +31,6 @@ groupshared Sphere s;
 void main( uint3 threadID : SV_DispatchThreadID,
 		  uint groupID : SV_GroupIndex)
 {
-	float delta = 0.001f; //Moving the collision point a little bit out  from the object.
 	//if(groupID == 0)
 	//{
 		s.position = float3(0,0,0);
@@ -54,19 +53,20 @@ void main( uint3 threadID : SV_DispatchThreadID,
 	// ########## INTERSECTION STAGE #########
 	h = RaySphereIntersect(r, s, h);
 	int i;
-	for(i = 0; i < 6; i+=3)
+	for(i = 0; i < 36; i+=3)
 	{
 		h = RayTriangleIntersection(r,triangles[i].position, triangles[i+1].position, triangles[i+2].position,triangles[i].color ,triangles[i].id, h);
 	}
 	
 
 	if(h.id == -1)
+	{
 		output[threadID.xy] = h.color;
+	}
 	else
 	{
 		float4 t = float4(0, 0, 0, 0);
 		float4 color = float4(0,0,0,0);
-		int ps = 1;
 		Ray L;// Tänka på att inte skriva till texturen sen!!!! utan att eventuellt kolla om de ska göras.
 		L.origin = r.origin + (r.direction *h.distance);
 		HitData shadowh;
@@ -74,26 +74,29 @@ void main( uint3 threadID : SV_DispatchThreadID,
 		shadowh.id = -1;
 		shadowh.normal = float3(0,0,0);
 
-		for(int i = ps-1; i < 3;i++)
+		for(int i = 0; i < 10;i++)
 		{
-			t = float4(0, 0, 0, 0);
-			L.direction = normalize(pl[i].position.xyz - L.origin);
-			float lightDistance = length(pl[i].position.xyz - L.origin);
+			//NULLIFY
+			t = float4(0, 0, 0, 0);			
 			shadowh.distance = -1.f;
+			shadowh.id = -1;
+			//RECALCULATE
+			float lightDistance = length(pl[i].position.xyz - L.origin);
+			L.direction = normalize(pl[i].position.xyz - L.origin);
+
+			if(h.id != s.id)
+				shadowh = RaySphereIntersect(L, s, shadowh);
 			
-			shadowh = RaySphereIntersect(L, s, shadowh);
-			
-			for(int j = 0; j < 6; j+=3)
+			for(int j = 0; j < 36; j+=3)
 			{
-				shadowh = RayTriangleIntersection(L,triangles[j].position, triangles[j+1].position, triangles[j+2].position,triangles[j].color, triangles[j].id, shadowh);
+				if(h.id != triangles[j].id)
+					shadowh = RayTriangleIntersection(L,triangles[j].position, triangles[j+1].position, triangles[j+2].position,triangles[j].color, triangles[j].id, shadowh);
 			}
 			
 			if(shadowh.distance > 0.f && shadowh.distance < lightDistance)
-			{
-				t += 0.8f * float4(LightSourceCalc(L, h, pl[i]),0.f);				
-			}
+				t += 0.8f * float4(LightSourceCalc(L, h, pl[i]),0.f);	
 			else
-				t += 1.5f * float4(LightSourceCalc(L, h, pl[i]),0.f);
+				t += 1.f * float4(LightSourceCalc(L, h, pl[i]),0.f);
 			
 			color += h.color * t;
 		}
@@ -136,7 +139,7 @@ float3 LightSourceCalc(Ray r, HitData h, PointLight l)
 	
 		// diffuse and specular terms
 		litColor += diffuseFactor * h.color.xyz * l.diffuse.xyz;
-		litColor += specFactor * l.specular;// * v.spec;
+		//litColor += specFactor * l.specular;// * v.spec;
 	}
 	
 	// attenuate
