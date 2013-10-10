@@ -74,7 +74,7 @@ void main( uint3 threadID : SV_DispatchThreadID,
 		shadowh.color = float4(0,0,0,1);
 		shadowh.id = -1;
 		shadowh.normal = float3(0,0,0);
-		[unroll] //IF FPS PROBLEM REMOVE THIS
+		//[unroll] //IF FPS PROBLEM REMOVE THIS
 		for(int i = 0; i < 10;i++)
 		{
 			//NULLIFY
@@ -95,11 +95,11 @@ void main( uint3 threadID : SV_DispatchThreadID,
 			}
 			
 			if(shadowh.distance > 0.f && shadowh.distance < lightDistance)
-				t += 0.8f * float4(LightSourceCalc(L, h, pl[i]),0.f);	
+				t += 0.5f * float4(LightSourceCalc(L, h, pl[i]),0.f);	
 			else
-				t += 1.f * float4(LightSourceCalc(L, h, pl[i]),0.f);
+				t += 1.0f * float4(LightSourceCalc(L, h, pl[i]),0.f);
 			
-			color += h.color * t;
+			color += (h.color*float4(0.1f,0.1f,0.1f,1)) * t;
 		}
 
 		output[threadID.xy] = color;
@@ -108,6 +108,26 @@ void main( uint3 threadID : SV_DispatchThreadID,
 
 float3 LightSourceCalc(Ray r, HitData h, PointLight l)
 {
+	//PHONG
+
+	float4 diffuse = { 1.0f, 0.0f, 0.0f, 1.0f};
+	diffuse = l.diffuse;
+	float4 ambient = { 0.1f, 0.0f, 0.0f, 1.0f};
+	ambient = l.ambient;
+
+	float3 Normal = normalize(h.normal);
+	float3 LightDir = normalize(l.position - r.origin);
+	float3 ViewDir = -normalize(r.origin - camPos); 
+	float4 diff = saturate(dot(Normal, LightDir)); // diffuse component
+
+	// R = 2 * (N.L) * N - L
+	float3 Reflect = normalize(2* diff * h.normal - LightDir); 
+	float4 specular = pow(saturate(dot(Reflect, ViewDir)), 20); // R.V^n
+
+	// I = Acolor + Dcolor * N.L + (R.V)n
+	return ambient + diffuse * diff + specular;
+
+	//TEST
 	//float diffusePower = 1;
 	//float3 viewDir = float3(0,1,0);
 	//float specularPower = 0.2f; 
@@ -143,41 +163,43 @@ float3 LightSourceCalc(Ray r, HitData h, PointLight l)
 	//	return float3(0,0,0);
 	//}
 
-	float3 litColor = float3(0.0f, 0.0f, 0.0f);
-	
-	// The vector from the surface to the light.
-	float3 lightVec = l.position.xyz - r.origin ;
-		
-	// The distance from surface to light.
-	float d = length(lightVec);
-	
-	/*if( d > L.range )
-		return float3(0.0f, 0.0f, 0.0f);*/
-		
-	// Normalize the light vector.
-	lightVec /= d;
-	
-	// Add the ambient light term.
-	litColor += h.color.xyz * l.ambient.xyz;	
-	
-	// Add diffuse and specular term, provided the surface is in 
-	// the line of site of the light.
-	
-	float diffuseFactor = dot(lightVec, h.normal);
-	//return float4(1, 1, 1, 1) * diffuseFactor;
-	[branch]
-	if( diffuseFactor > 0.0f )
-	{
-		float specPower  = max(h.color.a, 1.0f);
-		float3 toEye     = normalize(camPos - r.origin);
-		float3 R         = reflect(-lightVec, h.normal);
-		float specFactor = pow(max(dot(R, toEye), 0.0f), specPower);
-	
-		// diffuse and specular terms
-		litColor += diffuseFactor * h.color.xyz * l.diffuse.xyz;
-		//litColor += specFactor * l.specular;// * v.spec;
-	}
-	
-	// attenuate
-	return litColor / dot(l.att.xyz, float3(1.0f, d, d*d));
+	// ORIGINAL
+
+	//float3 litColor = float3(0.0f, 0.0f, 0.0f);
+	//
+	//// The vector from the surface to the light.
+	//float3 lightVec = l.position.xyz - r.origin ;
+	//	
+	//// The distance from surface to light.
+	//float d = length(lightVec);
+	//
+	///*if( d > L.range )
+	//	return float3(0.0f, 0.0f, 0.0f);*/
+	//	
+	//// Normalize the light vector.
+	//lightVec /= d;
+	//
+	//// Add the ambient light term.
+	//litColor += h.color.xyz * l.ambient.xyz;	
+	//
+	//// Add diffuse and specular term, provided the surface is in 
+	//// the line of site of the light.
+	//
+	//float diffuseFactor = dot(lightVec, h.normal);
+	////return float4(1, 1, 1, 1) * diffuseFactor;
+	//[branch]
+	//if( diffuseFactor > 0.0f )
+	//{
+	//	float specPower  = max(h.color.a, 1.0f);
+	//	float3 toEye     = normalize(camPos - r.origin);
+	//	float3 R         = reflect(-lightVec, h.normal);
+	//	float specFactor = pow(max(dot(R, toEye), 0.0f), specPower);
+	//
+	//	// diffuse and specular terms
+	//	litColor += diffuseFactor * h.color.xyz * l.diffuse.xyz;
+	//	//litColor += specFactor * l.specular;// * v.spec;
+	//}
+	//
+	//// attenuate
+	//return litColor / dot(l.att.xyz, float3(1.0f, d, d*d));
 }
