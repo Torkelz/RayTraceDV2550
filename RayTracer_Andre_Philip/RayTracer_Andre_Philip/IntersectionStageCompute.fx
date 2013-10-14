@@ -6,15 +6,12 @@
 #include "IntersectionCompute.fx"
 
 cbuffer cBufferdata : register(b0){cData cd;};
-//StructuredBuffer<Ray> InputRays : register(t0);
 StructuredBuffer<Vertex> Triangles : register(t0);
 
 RWStructuredBuffer<Ray> IO_Rays : register(u0);
 RWStructuredBuffer<HitData> OutputHitdata : register(u1);
-RWTexture2D<float4> output : register(u2);
 
-
-[numthreads(32, 32, 1)]
+[numthreads(noThreadsX, noThreadsY, noThreadsZ)]
 void main( uint3 ThreadID : SV_DispatchThreadID )
 {
 	int index = ThreadID.x+(ThreadID.y*cd.screenWidth);
@@ -44,7 +41,6 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 
 	OutputHitdata[index] = h;
 
-	output[ThreadID.xy] = OutputHitdata[index].color;
 	if(h.id != -1)
 	{
 		r.origin = r.origin + r.direction * h.distance;

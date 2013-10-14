@@ -28,10 +28,10 @@ ID3D11DeviceContext*		g_DeviceContext			= NULL;
 ID3D11UnorderedAccessView*  g_BackBufferUAV			= NULL;  // compute output
 
 ComputeWrap*				g_ComputeSys			= NULL;
-ComputeShader*				g_ComputeShader			= NULL;
 ComputeShader*				g_CS_ComputeRay			= NULL;
 ComputeShader*				g_CS_IntersectionStage	= NULL;
 ComputeShader*				g_CS_ColorStage			= NULL;
+
 ComputeBuffer*				g_ObjectBuffer			= NULL;
 ComputeBuffer*				g_lightBuffer			= NULL;
 ComputeBuffer*				g_rayBuffer				= NULL;
@@ -55,9 +55,10 @@ int g_Width, g_Height;
 //--------------------------------------------------------------------------------------
 HRESULT             InitWindow( HINSTANCE hInstance, int nCmdShow );
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
-HRESULT				Render(float deltaTime);
+HRESULT				Render();
 HRESULT				Update(float deltaTime);
 Vertex*				CreateBox(int size, D3DXVECTOR3 center);
+void				UpdateMovement(float p_dt);
 
 char* FeatureLevelToString(D3D_FEATURE_LEVEL featureLevel)
 {
@@ -76,6 +77,8 @@ char* FeatureLevelToString(D3D_FEATURE_LEVEL featureLevel)
 //--------------------------------------------------------------------------------------
 HRESULT Init()
 {
+#pragma region Template
+
 	HRESULT hr = S_OK;;
 
 	RECT rc;
@@ -163,10 +166,12 @@ HRESULT Init()
 
 	//create helper sys and compute shader instance
 	g_ComputeSys = new ComputeWrap(g_Device, g_DeviceContext);
-	g_ComputeShader = g_ComputeSys->CreateComputeShader(_T("BasicCompute.fx"), NULL, "main", NULL);
+	//g_ComputeShader = g_ComputeSys->CreateComputeShader(_T("BasicCompute.fx"), NULL, "main", NULL);
 	g_Timer = new D3D11Timer(g_Device, g_DeviceContext);
 
 	//END OF TEMPLATE CODE
+	#pragma endregion Default code
+
 	//BEGIN OF OWN CODE
 
 	g_camera = new Camera(D3DXVECTOR3(0,0,-10));
@@ -174,10 +179,7 @@ HRESULT Init()
 	g_camera->setViewMatrix(g_camera->getPosition());
 	g_mouseInput = new MouseInput(g_hWnd, g_camera, g_Width, g_Height);
 
-	//ComputeShaders
-	
-
-	//Buffers!!!!
+	//ConstantBuffer
 	g_cBuffer = new Buffer();
 	
 	g_cData.camPos = g_camera->getPosition();
@@ -226,33 +228,11 @@ HRESULT Init()
 
 HRESULT Update(float deltaTime)
 {
-	if(GetAsyncKeyState('A') & 0x8000)
-	{
-		g_camera->strafe(-g_cameraSpeed * deltaTime );
-	}
-	if(GetAsyncKeyState('D') & 0x8000)
-	{
-		g_camera->strafe( g_cameraSpeed * deltaTime );
-	}
-	if(GetAsyncKeyState('W') & 0x8000)
-	{
-		g_camera->walk( g_cameraSpeed * deltaTime );
-	}
-	if(GetAsyncKeyState('S') & 0x8000)
-	{
-		g_camera->walk( -g_cameraSpeed * deltaTime );
-	}
-	if(GetAsyncKeyState('C') & 0x8000)
-	{
-		if(g_mouseInput->getMode())
-			g_mouseInput->changeToPointerMode();
-		else
-			g_mouseInput->changeToFPSMode();
-	}
+	UpdateMovement( deltaTime);
 	g_camera->updateCameraPos();
 	g_camera->updateViewMatrix();
 	
-
+	//Update constantbuffer
 	g_cData.camPos = g_camera->getPosition();
 	D3DXMATRIX viewInv;
 	D3DXMatrixInverse(&viewInv,NULL, &g_camera->getViewMatrix());
@@ -263,7 +243,7 @@ HRESULT Update(float deltaTime)
 	g_cData.projMatInv = projInv;
 	g_cData.viewMatInv = viewInv;
 
-
+	//Lights movement
 	for(int i = 0; i < 10; i++)
 	{
 		if(i%2 == 0)
@@ -282,89 +262,79 @@ HRESULT Update(float deltaTime)
 	return S_OK;
 }
 
-HRESULT Render(float deltaTime)
+HRESULT Render()
 {
 	g_DeviceContext->UpdateSubresource(g_cBuffer->getBufferPointer(), 0, NULL, &g_cData, 0, 0);
 	g_cBuffer->apply(0);
 
-	//PRIMARY RAY
+	double rcTime, interTime, colorTime;
+	rcTime = interTime = colorTime = 0.f;
 
-	ID3D11UnorderedAccessView* uavrays[] = { g_rayBuffer->GetUnorderedAccessView() };
+	ID3D11UnorderedAccessView* clearuav[]			= { 0,0,0,0,0 };
+	ID3D11ShaderResourceView* clearsrv[]			= { 0,0,0,0,0 };
+
+	ID3D11ShaderResourceView* bufftri[]				= { g_ObjectBuffer->GetResourceView()};
+
+	ID3D11UnorderedAccessView* uavrays[]			= { g_rayBuffer->GetUnorderedAccessView() };
+	ID3D11UnorderedAccessView* uav[]				= { g_BackBufferUAV };
+	ID3D11UnorderedAccessView* intersectionBuffer[] = {	g_rayBuffer->GetUnorderedAccessView(),
+														g_hitDataBuffer->GetUnorderedAccessView()};
+	
+	ID3D11ShaderResourceView* colorBuffer[]			= {	g_ObjectBuffer->GetResourceView(),
+														g_hitDataBuffer->GetResourceView(),
+														g_lightBuffer->GetResourceView()
+														};
+
+	// ### PRIMARY RAY ###
 	g_DeviceContext->CSSetUnorderedAccessViews(0, 1, uavrays, NULL);
 
 	g_CS_ComputeRay->Set();
 	g_Timer->Start();
-	g_DeviceContext->Dispatch( 25, 25, 1 );
+	g_DeviceContext->Dispatch( noDThreadsX, noDThreadsY, noDThreadsZ );
 	g_Timer->Stop();
 	g_CS_ComputeRay->Unset();
+	////Clear used resources
+	g_DeviceContext->CSSetUnorderedAccessViews(0, 1, clearuav, NULL);
+	// ### PRIMARY RAY END ###
+	rcTime = g_Timer->GetTime();
 
-	ID3D11ShaderResourceView* bufftri[] = {g_ObjectBuffer->GetResourceView()};
-
-	ID3D11UnorderedAccessView* intersectionBuffer[] = {	g_rayBuffer->GetUnorderedAccessView(),
-														g_hitDataBuffer->GetUnorderedAccessView()};
-	
-	ID3D11ShaderResourceView* colorBuffer[] = {		g_ObjectBuffer->GetResourceView(),
-													g_hitDataBuffer->GetResourceView(),
-													g_lightBuffer->GetResourceView()
-													};
-	//ID3D11UnorderedAccessView* uav[] = { g_BackBufferUAV };
-	ID3D11UnorderedAccessView* uav[] = { g_BackBufferUAV };
 	for(int i = 0; i < 1; i++)
 	{
-		//IntersectionStage
-		
+		// ### IntersectionStage ###		
 		g_DeviceContext->CSSetShaderResources(0,1,bufftri);
-
 		g_DeviceContext->CSSetUnorderedAccessViews(0, 2, intersectionBuffer, NULL);
-		g_DeviceContext->CSSetUnorderedAccessViews(2, 1, uav, NULL);
 
 		g_CS_IntersectionStage->Set();
 		g_Timer->Start();
-		g_DeviceContext->Dispatch( 25, 25, 1 );
+		g_DeviceContext->Dispatch( noDThreadsX, noDThreadsY, noDThreadsZ );
 		g_Timer->Stop();
 		g_CS_IntersectionStage->Unset();
-
-		//ColorStage
-		/*PointLight* lightPointer =  g_lightBuffer->Map<PointLight>();
+		//Clear used resources
+		g_DeviceContext->CSSetUnorderedAccessViews(0, 2, clearuav, NULL);
+		g_DeviceContext->CSSetShaderResources(0,1,clearsrv);
+		// ### IntersectionStage END ###
+		interTime = g_Timer->GetTime();
+		// ### ColorStage ###
+		PointLight* lightPointer =  g_lightBuffer->Map<PointLight>();
 
 		memcpy(lightPointer, g_lights, sizeof(PointLight)*sizeof(g_lights)/sizeof(PointLight));
 		g_lightBuffer->Unmap();
 		g_lightBuffer->CopyToResource();
 
-		g_DeviceContext->CSSetShaderResources(0,3,colorBuffer);
-		
+		g_DeviceContext->CSSetShaderResources(0,3,colorBuffer);		
 		g_DeviceContext->CSSetUnorderedAccessViews(0, 1, uav, NULL);
 
 		g_CS_ColorStage->Set();
 		g_Timer->Start();
-		g_DeviceContext->Dispatch( 25, 25, 1 );
+		g_DeviceContext->Dispatch( noDThreadsX, noDThreadsY, noDThreadsZ );
 		g_Timer->Stop();
-		g_CS_ColorStage->Unset();*/
+		g_CS_ColorStage->Unset();
+		//Clear used resources
+		g_DeviceContext->CSSetShaderResources(0,3,clearsrv);		
+		g_DeviceContext->CSSetUnorderedAccessViews(0, 1, clearuav, NULL);
+		// ### ColorStage END ###
+		colorTime = g_Timer->GetTime();
 	}
-
-	//g_cBuffer->apply(0);
-	
-
-	//g_DeviceContext->CSSetShaderResources(0,1,bufftri);
-
-	//ID3D11ShaderResourceView* lightBuff[] = {g_lightBuffer->GetResourceView()};
-	//g_DeviceContext->CSSetShaderResources(1,1,lightBuff);
-
-	//
-
-	//
-	//g_DeviceContext->CSSetUnorderedAccessViews(0, 1, uav, NULL);
-
-	//ID3D11ShaderResourceView* rb[] = {g_hitDataBuffer->GetResourceView()};
-	//g_DeviceContext->CSSetShaderResources(2,1,rb);
-
-	////BASIC COMPUTE
-	//g_ComputeShader->Set();
-	//g_Timer->Start();
-	//g_DeviceContext->Dispatch( 25, 25, 1 );
-	//g_Timer->Stop();
-	//g_ComputeShader->Unset();
-
 
 	if(FAILED(g_SwapChain->Present( 1, 0 )))
 		return E_FAIL;
@@ -374,14 +344,40 @@ HRESULT Render(float deltaTime)
 	sprintf_s(
 		title,
 		sizeof(title),
-		"BTH - DirectCompute DEMO - Dispatch time: %f CamPos %d,%d,%d, LookAt: %f,%f,%f, MPos: %d,%d",
-		g_Timer->GetTime(), (int)g_camera->getPosition().x,(int)g_camera->getPosition().y,(int)g_camera->getPosition().z,
-		g_camera->getLookAt().x, g_camera->getLookAt().y, g_camera->getLookAt().z,
-		g_mouseInput->getPosition().x, g_mouseInput->getPosition().y
+		"RayTrace - DTime RC: %f, DTime Inters: %f, DTime Color: %f, DTime Total: %f, CamPos %d,%d,%d",
+		rcTime, interTime, colorTime, rcTime + interTime + colorTime,
+		(int)g_camera->getPosition().x,(int)g_camera->getPosition().y,(int)g_camera->getPosition().z
 	);
 	SetWindowText(g_hWnd, title);
 
 	return S_OK;
+}
+
+void UpdateMovement(float p_dt)
+{
+	if(GetAsyncKeyState('A') & 0x8000)
+	{
+		g_camera->strafe(-g_cameraSpeed * p_dt );
+	}
+	if(GetAsyncKeyState('D') & 0x8000)
+	{
+		g_camera->strafe( g_cameraSpeed * p_dt );
+	}
+	if(GetAsyncKeyState('W') & 0x8000)
+	{
+		g_camera->walk( g_cameraSpeed * p_dt );
+	}
+	if(GetAsyncKeyState('S') & 0x8000)
+	{
+		g_camera->walk( -g_cameraSpeed * p_dt );
+	}
+	if(GetAsyncKeyState('C') & 0x8000)
+	{
+		if(g_mouseInput->getMode())
+			g_mouseInput->changeToPointerMode();
+		else
+			g_mouseInput->changeToFPSMode();
+	}
 }
 
 //--------------------------------------------------------------------------------------
@@ -420,7 +416,7 @@ int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 
 			//render
 			Update(dt);
-			Render(dt);
+			Render();
 
 			prevTimeStamp = currTimeStamp;
 		}
@@ -525,7 +521,8 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
 				if (g_mouseInput->getMode())
 				{
 					g_mouseInput->rawUpdate(raw);
-					g_mouseInput->moveCursorToCenter(g_Width, g_Height);
+					//g_mouseInput->moveCursorToCenter(g_Width, g_Height);
+					g_mouseInput->moveCursorToCenter();
 					g_mouseInput->notifyObservers();
 				}
 

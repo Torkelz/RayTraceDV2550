@@ -1,6 +1,10 @@
 #ifndef STRUCTSCOMPUTE
 #define STRUCTSCOMPUTE
 
+#define noThreadsX 32
+#define noThreadsY 32
+#define noThreadsZ 1
+
 struct cData
 {
 	float4x4	viewMatInv;
@@ -12,6 +16,7 @@ struct cData
 	float		fovX;
 	float		fovY;
 };
+
 struct Ray
 {
 	float3 origin;

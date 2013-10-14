@@ -4,13 +4,13 @@
 #pragma pack_matrix(row_major)
 #include "structsCompute.fx"
 
-cbuffer cBufferdata : register(b0){cData cd;};
-
 Ray CreateRay(uint3 thread, int screenWidth, int screenHeight, float3 camPos, matrix projMatInv, matrix viewMatInv);
+
+cbuffer cBufferdata : register(b0){cData cd;};
 
 RWStructuredBuffer<Ray> outputRay : register(u0);
 
-[numthreads(32, 32, 1)]
+[numthreads(noThreadsX, noThreadsY, noThreadsZ)]
 void main( uint3 ThreadID : SV_DispatchThreadID )
 {
 	outputRay[ThreadID.x + (ThreadID.y*cd.screenWidth)] = CreateRay(ThreadID, cd.screenWidth, cd.screenHeight, cd.camPos, cd.projMatInv, cd.viewMatInv);

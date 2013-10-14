@@ -1,9 +1,15 @@
+#ifndef MAIN_H
+#define MAIN_H
 
 typedef D3DXVECTOR4 float4;
 typedef D3DXVECTOR3 float3;
 typedef D3DXMATRIX float4x4;
 
 #include "structsCompute.fx"
+
+#define noDThreadsX 25
+#define noDThreadsY 25
+#define noDThreadsZ 1
 
 inline PointLight CreatePointLight(D3DXVECTOR4 _position,	D3DXVECTOR4 _color, D3DXVECTOR4 _diffuse, D3DXVECTOR4 _ambient, D3DXVECTOR4 _specular, D3DXVECTOR4 _att)
 {
@@ -43,3 +49,5 @@ PointLight g_lights[] =
 	CreatePointLight(D3DXVECTOR4(0, 20, 0,1),  D3DXVECTOR4(1,1,1,1), D3DXVECTOR4(0.5f,0.5f,0.5f,1), D3DXVECTOR4(0.4f,0.4f,0.4f,1), D3DXVECTOR4(0.05f,0.05f,0.05f,1), D3DXVECTOR4(0,0.25f,0, 1)),
 	CreatePointLight(D3DXVECTOR4(0,-20,0,1),   D3DXVECTOR4(1,1,1,1), D3DXVECTOR4(0.5f,0.5f,0.5f,1), D3DXVECTOR4(0.4f,0.4f,0.4f,1), D3DXVECTOR4(0.05f,0.05f,0.05f,1), D3DXVECTOR4(0,0.25f,0, 1))
 };
+
+#endif

@@ -13,6 +13,9 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Not used">
+      <UniqueIdentifier>{adced750-d194-472d-a2b1-ea65c8ca5395}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="ComputeHelp.cpp">
@@ -58,12 +61,16 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="BasicCompute.fx" />
-    <FxCompile Include="PrimaryCompute.fx" />
     <FxCompile Include="IntersectionCompute.fx" />
     <FxCompile Include="structsCompute.fx" />
     <FxCompile Include="PrimaryRayCompute.fx" />
     <FxCompile Include="IntersectionStageCompute.fx" />
     <FxCompile Include="ColorStageCompute.fx" />
+    <FxCompile Include="PrimaryCompute.fx">
+      <Filter>Not used</Filter>
+    </FxCompile>
+    <FxCompile Include="BasicCompute.fx">
+      <Filter>Not used</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

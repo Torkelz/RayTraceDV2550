@@ -18,7 +18,8 @@ public:
 	~MouseInput();
 	
 	void		rawUpdate( RAWINPUT* raw );
-	void		moveCursorToCenter(int p_width, int p_height);
+	//void		moveCursorToCenter(int p_width, int p_height);
+	void		moveCursorToCenter();
 	void		notifyObservers();
 	void		setCenterPos(POINT pCenterPos);
 	void		setXScale(float f);

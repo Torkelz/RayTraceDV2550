@@ -31,8 +31,8 @@ void Camera::createProjectionMatrix( float pFOV, float pAspect,
 	mNearPlane	= pNearPlane;
 	mFarPlane	= pFarPlane;
 
-	float yScale	= cotan( mFOV / 2 );
-	float xScale	= yScale / mAspect;
+	//float yScale	= cotan( mFOV / 2 );
+	//float xScale	= yScale / mAspect;
 	float planeDiff	= mFarPlane - mNearPlane;
 
 	// Lens.

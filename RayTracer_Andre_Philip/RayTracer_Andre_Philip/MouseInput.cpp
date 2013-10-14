@@ -42,7 +42,8 @@ void MouseInput::rawUpdate(RAWINPUT* raw)
 	dy = raw->data.mouse.lLastY;
 }
 
-void MouseInput::moveCursorToCenter(int p_width, int p_height)
+//void MouseInput::moveCursorToCenter(int p_width, int p_height)
+void MouseInput::moveCursorToCenter()
 {
 	POINT pt;
 	pt.x			= winWidth / 2;

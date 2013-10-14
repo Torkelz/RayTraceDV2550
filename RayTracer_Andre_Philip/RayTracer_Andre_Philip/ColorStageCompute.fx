@@ -14,7 +14,7 @@ StructuredBuffer<PointLight> pl : register(t2);
 
 RWTexture2D<float4> output : register(u0);
 
-[numthreads(32, 32, 1)]
+[numthreads(noThreadsX, noThreadsY, noThreadsZ)]
 void main( uint3 ThreadID : SV_DispatchThreadID )
 {
 	int index = ThreadID.x+(ThreadID.y*cd.screenWidth);
@@ -27,7 +27,7 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 
 	if(h.id == -1)
 	{
-		output[ThreadID.xy] = float4(0,0,0,1);
+		output[ThreadID.xy] = h.color;
 	}
 	else
 	{
@@ -67,31 +67,29 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 			color += (h.color*float4(0.1f,0.1f,0.1f,1)) * t;
 		}
 
-		output[ThreadID.xy] = h.color;
-		//output[ThreadID.xy] = float4(1,0,0,1);
+		output[ThreadID.xy] = color;
 	}
 }
 
 float3 LightSourceCalc(Ray r, HitData h, PointLight l)
 {
 	//PHONG
-
 	float4 diffuse = { 1.0f, 0.0f, 0.0f, 1.0f};
 	diffuse = l.diffuse;
 	float4 ambient = { 0.1f, 0.0f, 0.0f, 1.0f};
 	ambient = l.ambient;
 
 	float3 Normal = normalize(h.normal);
-	float3 LightDir = normalize(l.position - r.origin);
+	float3 LightDir = normalize(l.position.xyz - r.origin);
 	float3 ViewDir = -normalize(r.origin - cd.camPos); 
 	float4 diff = saturate(dot(Normal, LightDir)); // diffuse component
 
 	// R = 2 * (N.L) * N - L
-	float3 Reflect = normalize(2* diff * h.normal - LightDir); 
+	float3 Reflect = normalize(2* diff.xyz * h.normal - LightDir); 
 	float4 specular = pow(saturate(dot(Reflect, ViewDir)), 20); // R.V^n
 
 	// I = Acolor + Dcolor * N.L + (R.V)n
-	return ambient + diffuse * diff + specular;
+	return ambient.xyz + diffuse.xyz * diff.xyz + specular.xyz;
 }
 
 #endif //COLORSTAGECOMPUTE
