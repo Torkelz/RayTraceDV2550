@@ -62,5 +62,7 @@
     <FxCompile Include="PrimaryCompute.fx" />
     <FxCompile Include="IntersectionCompute.fx" />
     <FxCompile Include="structsCompute.fx" />
+    <FxCompile Include="PrimaryRayCompute.fx" />
+    <FxCompile Include="IntersectionStageCompute.fx" />
   </ItemGroup>
 </Project>

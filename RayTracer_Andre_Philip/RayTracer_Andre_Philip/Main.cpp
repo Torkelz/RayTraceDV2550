@@ -29,8 +29,12 @@ ID3D11UnorderedAccessView*  g_BackBufferUAV			= NULL;  // compute output
 
 ComputeWrap*				g_ComputeSys			= NULL;
 ComputeShader*				g_ComputeShader			= NULL;
+ComputeShader*				g_CS_ComputeRay			= NULL;
+ComputeShader*				g_CS_IntersectionStage	= NULL;
 ComputeBuffer*				g_ObjectBuffer			= NULL;
 ComputeBuffer*				g_lightBuffer			= NULL;
+ComputeBuffer*				g_rayBuffer				= NULL;
+ComputeBuffer*				g_hitDataBuffer			= NULL;
 
 D3D11Timer*					g_Timer					= NULL;
 
@@ -169,6 +173,9 @@ HRESULT Init()
 	g_camera->setViewMatrix(g_camera->getPosition());
 	g_mouseInput = new MouseInput(g_hWnd, g_camera, g_Width, g_Height);
 
+	//ComputeShaders
+	g_CS_ComputeRay = g_ComputeSys->CreateComputeShader(_T("PrimaryRayCompute.fx"), NULL, "main", NULL);
+
 	//Buffers!!!!
 	g_cBuffer = new Buffer();
 	
@@ -198,10 +205,17 @@ HRESULT Init()
 
 	Vertex* box = CreateBox(60,D3DXVECTOR3(0,0,0));
 
-	g_ObjectBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(Vertex),36, true, false, box,false, "Structured Buffer:Triangle");
+	
 
 	g_lightBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(PointLight),sizeof(g_lights)/sizeof(PointLight), true, false, &g_lights,true, "Structured Buffer:Light");
 
+	//Primary rays
+	g_rayBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(Ray),g_Height*g_Width, true, true, NULL,true, "Structured Buffer:Rays");
+
+	//IntersectionStage
+	g_CS_IntersectionStage = g_ComputeSys->CreateComputeShader(_T("IntersectionStageCOmpute.fx"), NULL, "main", NULL);
+	g_ObjectBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(Vertex),36, true, false, box,false, "Structured Buffer:Triangle");
+	g_hitDataBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(Ray),g_Height*g_Width, true, true, NULL,true, "Structured Buffer:Rays");
 
 	return S_OK;
 }
@@ -268,27 +282,59 @@ HRESULT Render(float deltaTime)
 {
 	g_DeviceContext->UpdateSubresource(g_cBuffer->getBufferPointer(), 0, NULL, &g_cData, 0, 0);
 	g_cBuffer->apply(0);
+
+	//PRIMARY RAY
+
+	ID3D11UnorderedAccessView* uavrays[] = { g_rayBuffer->GetUnorderedAccessView() };
+	g_DeviceContext->CSSetUnorderedAccessViews(0, 1, uavrays, NULL);
+
+	g_CS_ComputeRay->Set();
+	g_Timer->Start();
+	g_DeviceContext->Dispatch( 25, 25, 1 );
+	g_Timer->Stop();
+	g_CS_ComputeRay->Unset();
+
+	//IntersectionStage
+
+	ID3D11ShaderResourceView* bufftri[] = {g_ObjectBuffer->GetResourceView()};
+	g_DeviceContext->CSSetShaderResources(0,1,bufftri);
+
+
+
+	g_CS_IntersectionStage->Set();
+	g_Timer->Start();
+	g_DeviceContext->Dispatch( 25, 25, 1 );
+	g_Timer->Stop();
+	g_CS_IntersectionStage->Unset();
+
 	
-	
+
+	//g_cBuffer->apply(0);
 	PointLight* lightPointer =  g_lightBuffer->Map<PointLight>();
 
 	memcpy(lightPointer, g_lights, sizeof(PointLight)*sizeof(g_lights)/sizeof(PointLight));
 	g_lightBuffer->Unmap();
 	g_lightBuffer->CopyToResource();
 
-	ID3D11ShaderResourceView* bufftri[] = {g_ObjectBuffer->GetResourceView()};
-	g_DeviceContext->CSSetShaderResources(0,1,bufftri);
+	
 	ID3D11ShaderResourceView* lightBuff[] = {g_lightBuffer->GetResourceView()};
 	g_DeviceContext->CSSetShaderResources(1,1,lightBuff);
+
+	
+
 	ID3D11UnorderedAccessView* uav[] = { g_BackBufferUAV };
 	g_DeviceContext->CSSetUnorderedAccessViews(0, 1, uav, NULL);
-	
-	
+
+	ID3D11ShaderResourceView* rb[] = {g_rayBuffer->GetResourceView()};
+	g_DeviceContext->CSSetShaderResources(2,1,rb);
+
+	//BASIC COMPUTE
 	g_ComputeShader->Set();
 	g_Timer->Start();
 	g_DeviceContext->Dispatch( 25, 25, 1 );
 	g_Timer->Stop();
 	g_ComputeShader->Unset();
+
 
 	if(FAILED(g_SwapChain->Present( 1, 0 )))
 		return E_FAIL;
@@ -471,63 +517,63 @@ Vertex* CreateBox(int size, D3DXVECTOR3 center)
 {
 	Vertex* box = new Vertex[36];
 	D3DXVECTOR4 color;
-	D3DXVECTOR3 vert0 = center + D3DXVECTOR3(-1.0*size, -1.0*size, -1.0*size); // 0 --- LowerLeftFront
-	D3DXVECTOR3 vert1 = center + D3DXVECTOR3( 1.0*size, -1.0*size, -1.0*size); // 1 +-- LowerRightFront
-	D3DXVECTOR3 vert2 = center + D3DXVECTOR3(-1.0*size,  1.0*size, -1.0*size); // 2 -+- UpperLeftFront
-	D3DXVECTOR3 vert3 = center + D3DXVECTOR3( 1.0*size,  1.0*size, -1.0*size); // 3 ++- UpperRightFront
-	D3DXVECTOR3 vert4 = center + D3DXVECTOR3(-1.0*size, -1.0*size,  1.0*size); // 4 --+ LowerLeftBack
-	D3DXVECTOR3 vert5 = center + D3DXVECTOR3( 1.0*size, -1.0*size,  1.0*size); // 5 +-+ LowerRightBack
-	D3DXVECTOR3 vert6 = center + D3DXVECTOR3(-1.0*size,  1.0*size,  1.0*size); // 6 -++ UpperLeftBack
-	D3DXVECTOR3 vert7 = center + D3DXVECTOR3( 1.0*size,  1.0*size,  1.0*size); // 7 +++ UpperRightBack
-
+	D3DXVECTOR3 vert0 = center + D3DXVECTOR3(-1.0f*size, -1.0f*size, -1.0f*size); // 0 --- LowerLeftFront
+	D3DXVECTOR3 vert1 = center + D3DXVECTOR3( 1.0f*size, -1.0f*size, -1.0f*size); // 1 +-- LowerRightFront
+	D3DXVECTOR3 vert2 = center + D3DXVECTOR3(-1.0f*size,  1.0f*size, -1.0f*size); // 2 -+- UpperLeftFront
+	D3DXVECTOR3 vert3 = center + D3DXVECTOR3( 1.0f*size,  1.0f*size, -1.0f*size); // 3 ++- UpperRightFront
+	D3DXVECTOR3 vert4 = center + D3DXVECTOR3(-1.0f*size, -1.0f*size,  1.0f*size); // 4 --+ LowerLeftBack
+	D3DXVECTOR3 vert5 = center + D3DXVECTOR3( 1.0f*size, -1.0f*size,  1.0f*size); // 5 +-+ LowerRightBack
+	D3DXVECTOR3 vert6 = center + D3DXVECTOR3(-1.0f*size,  1.0f*size,  1.0f*size); // 6 -++ UpperLeftBack
+	D3DXVECTOR3 vert7 = center + D3DXVECTOR3( 1.0f*size,  1.0f*size,  1.0f*size); // 7 +++ UpperRightBack
+												 
 	// Back
 	color = D3DXVECTOR4(0,1,0,1);
-	box[0] = Vertex(vert4, color, 1);
-	box[1] = Vertex(vert6, color, 1);
-	box[2] = Vertex(vert5, color, 1);
-	box[3] = Vertex(vert6, color, 2);
-	box[4] = Vertex(vert7, color, 2);
-	box[5] = Vertex(vert5, color, 2);
+	box[0] = CreateVertex(vert4, color, 1);
+	box[1] = CreateVertex(vert6, color, 1);
+	box[2] = CreateVertex(vert5, color, 1);
+	box[3] = CreateVertex(vert6, color, 2);
+	box[4] = CreateVertex(vert7, color, 2);
+	box[5] = CreateVertex(vert5, color, 2);
 
 	// Front
-	box[6] = Vertex(vert1, color, 3);
-	box[7] = Vertex(vert3, color, 3);
-	box[8] = Vertex(vert0, color, 3);
-	box[9] = Vertex(vert3, color, 4);
-	box[10] = Vertex(vert2, color, 4);
-	box[11] = Vertex(vert0, color, 4);
+	box[6] = CreateVertex(vert1, color, 3);
+	box[7] = CreateVertex(vert3, color, 3);
+	box[8] = CreateVertex(vert0, color, 3);
+	box[9] = CreateVertex(vert3, color, 4);
+	box[10] = CreateVertex(vert2, color, 4);
+	box[11] = CreateVertex(vert0, color, 4);
 
 	// Top
-	box[12] = Vertex(vert3, color, 5);
-	box[13] = Vertex(vert7, color, 5);
-	box[14] = Vertex(vert2, color, 5);
-	box[15] = Vertex(vert7, color, 6);
-	box[16] = Vertex(vert6, color, 6);
-	box[17] = Vertex(vert2, color, 6);
+	box[12] = CreateVertex(vert3, color, 5);
+	box[13] = CreateVertex(vert7, color, 5);
+	box[14] = CreateVertex(vert2, color, 5);
+	box[15] = CreateVertex(vert7, color, 6);
+	box[16] = CreateVertex(vert6, color, 6);
+	box[17] = CreateVertex(vert2, color, 6);
 
 	// Bottom
-	box[18] = Vertex(vert0, color, 7);
-	box[19] = Vertex(vert4, color, 7);
-	box[20] = Vertex(vert1, color, 7);
-	box[21] = Vertex(vert4, color, 8);
-	box[22] = Vertex(vert5, color, 8);
-	box[23] = Vertex(vert1, color, 8);
+	box[18] = CreateVertex(vert0, color, 7);
+	box[19] = CreateVertex(vert4, color, 7);
+	box[20] = CreateVertex(vert1, color, 7);
+	box[21] = CreateVertex(vert4, color, 8);
+	box[22] = CreateVertex(vert5, color, 8);
+	box[23] = CreateVertex(vert1, color, 8);
 
-	// Right
-	box[24] = Vertex(vert5, color, 9);
-	box[25] = Vertex(vert7, color, 9);
-	box[26] = Vertex(vert1, color, 9);
-	box[27] = Vertex(vert7, color, 10);
-	box[28] = Vertex(vert3, color, 10);
-	box[29] = Vertex(vert1, color, 10);
+	// Right 
+	box[24] = CreateVertex(vert5, color, 9);
+	box[25] = CreateVertex(vert7, color, 9);
+	box[26] = CreateVertex(vert1, color, 9);
+	box[27] = CreateVertex(vert7, color, 10);
+	box[28] = CreateVertex(vert3, color, 10);
+	box[29] = CreateVertex(vert1, color, 10);
 
 	// Left
-	box[30] = Vertex(vert0, color, 11);
-	box[31] = Vertex(vert2, color, 11);
-	box[32] = Vertex(vert4, color, 11);
-	box[33] = Vertex(vert2, color, 12);
-	box[34] = Vertex(vert6, color, 12);
-	box[35] = Vertex(vert4, color, 12);
+	box[30] = CreateVertex(vert0, color, 11);
+	box[31] = CreateVertex(vert2, color, 11);
+	box[32] = CreateVertex(vert4, color, 11);
+	box[33] = CreateVertex(vert2, color, 12);
+	box[34] = CreateVertex(vert6, color, 12);
+	box[35] = CreateVertex(vert4, color, 12);
 
 
 	return box;

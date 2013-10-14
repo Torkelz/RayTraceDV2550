@@ -1,6 +1,17 @@
 #ifndef STRUCTSCOMPUTE
 #define STRUCTSCOMPUTE
 
+struct cData
+{
+	float4x4	viewMatInv;
+	float4x4	projMatInv;
+	float4x4	WVP;
+	float3		camPos;
+	int			screenWidth;
+	int			screenHeight;
+	float		fovX;
+	float		fovY;
+};
 struct Ray
 {
 	float3 origin;
@@ -21,6 +32,7 @@ struct HitData
 	float distance;
 	float3 normal;
 	int	id;
+	Ray r;
 };
 
 struct Vertex

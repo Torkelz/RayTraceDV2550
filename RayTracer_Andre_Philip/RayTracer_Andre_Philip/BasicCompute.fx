@@ -7,21 +7,13 @@
 #include "PrimaryCompute.fx"
 #include "IntersectionCompute.fx"
 
-cbuffer cBufferdata : register(c0)
-{
-	matrix		viewMatInv;
-	matrix		projMatInv;
-	float4x4	WVP;
-	float3		camPos;
-	int			screenWidth;
-	int			screenHeight;
-	float		fovX;
-	float		fovY;
-};
+cbuffer cBufferdata : register(b0){cData cd;};
 
 RWTexture2D<float4> output : register(u0);
 StructuredBuffer<Vertex> triangles : register(t0);
 StructuredBuffer<PointLight> pl : register(t1);
+
+StructuredBuffer<Ray> InputRays : register(t2);
 
 //Methods
 float3 LightSourceCalc(Ray r, HitData h, PointLight l);
@@ -48,7 +40,8 @@ void main( uint3 threadID : SV_DispatchThreadID,
 
 	// ########## PRIMARY STAGE ###########
 	Ray r;
-	r = CreateRay(threadID, screenWidth, screenHeight, camPos, projMatInv, viewMatInv);
+	//r = CreateRay(threadID, screenWidth, screenHeight, camPos, projMatInv, viewMatInv);
+	r = InputRays[threadID.x+(threadID.y*cd.screenWidth)];
 
 	// ########## INTERSECTION STAGE #########
 	h = RaySphereIntersect(r, s, h);
@@ -117,7 +110,7 @@ float3 LightSourceCalc(Ray r, HitData h, PointLight l)
 
 	float3 Normal = normalize(h.normal);
 	float3 LightDir = normalize(l.position - r.origin);
-	float3 ViewDir = -normalize(r.origin - camPos); 
+	float3 ViewDir = -normalize(r.origin - cd.camPos); 
 	float4 diff = saturate(dot(Normal, LightDir)); // diffuse component
 
 	// R = 2 * (N.L) * N - L
