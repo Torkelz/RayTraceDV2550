@@ -13,7 +13,7 @@ RWTexture2D<float4> output : register(u0);
 StructuredBuffer<Vertex> triangles : register(t0);
 StructuredBuffer<PointLight> pl : register(t1);
 
-StructuredBuffer<Ray> InputRays : register(t2);
+StructuredBuffer<HitData> InputRays : register(t2);
 
 //Methods
 float3 LightSourceCalc(Ray r, HitData h, PointLight l);
@@ -40,8 +40,8 @@ void main( uint3 threadID : SV_DispatchThreadID,
 
 	// ########## PRIMARY STAGE ###########
 	Ray r;
-	//r = CreateRay(threadID, screenWidth, screenHeight, camPos, projMatInv, viewMatInv);
-	r = InputRays[threadID.x+(threadID.y*cd.screenWidth)];
+	r = CreateRay(threadID, cd.screenWidth, cd.screenHeight, cd.camPos, cd.projMatInv, cd.viewMatInv);
+	//r = InputRays[threadID.x+(threadID.y*cd.screenWidth)];
 
 	// ########## INTERSECTION STAGE #########
 	h = RaySphereIntersect(r, s, h);
@@ -52,51 +52,52 @@ void main( uint3 threadID : SV_DispatchThreadID,
 		h = RayTriangleIntersection(r,triangles[i].position, triangles[i+1].position, triangles[i+2].position,triangles[i].color ,triangles[i].id, h);
 	}
 	
+	h = InputRays[threadID.x+(threadID.y*cd.screenWidth)];
+	output[threadID.xy] = h.color;
+	//if(h.id == -1)
+	//{
+	//	output[threadID.xy] = h.color;
+	//}
+	//else
+	//{
+	//	float4 t = float4(0, 0, 0, 0);
+	//	float4 color = float4(0,0,0,0);
+	//	Ray L;// Tänka på att inte skriva till texturen sen!!!! utan att eventuellt kolla om de ska göras.
+	//	L.origin = r.origin + (r.direction *h.distance);
+	//	HitData shadowh;
+	//	shadowh.color = float4(0,0,0,1);
+	//	shadowh.id = -1;
+	//	shadowh.normal = float3(0,0,0);
+	//	//[unroll] //IF FPS PROBLEM REMOVE THIS
+	//	for(int i = 0; i < 10;i++)
+	//	{
+	//		//NULLIFY
+	//		t = float4(0, 0, 0, 0);			
+	//		shadowh.distance = -1.f;
+	//		shadowh.id = -1;
+	//		//RECALCULATE
+	//		float lightDistance = length(pl[i].position.xyz - L.origin);
+	//		L.direction = normalize(pl[i].position.xyz - L.origin);
 
-	if(h.id == -1)
-	{
-		output[threadID.xy] = h.color;
-	}
-	else
-	{
-		float4 t = float4(0, 0, 0, 0);
-		float4 color = float4(0,0,0,0);
-		Ray L;// Tänka på att inte skriva till texturen sen!!!! utan att eventuellt kolla om de ska göras.
-		L.origin = r.origin + (r.direction *h.distance);
-		HitData shadowh;
-		shadowh.color = float4(0,0,0,1);
-		shadowh.id = -1;
-		shadowh.normal = float3(0,0,0);
-		//[unroll] //IF FPS PROBLEM REMOVE THIS
-		for(int i = 0; i < 10;i++)
-		{
-			//NULLIFY
-			t = float4(0, 0, 0, 0);			
-			shadowh.distance = -1.f;
-			shadowh.id = -1;
-			//RECALCULATE
-			float lightDistance = length(pl[i].position.xyz - L.origin);
-			L.direction = normalize(pl[i].position.xyz - L.origin);
+	//		if(h.id != s.id)
+	//			shadowh = RaySphereIntersect(L, s, shadowh);
+	//		
+	//		for(int j = 0; j < 36; j+=3)
+	//		{
+	//			if(h.id != triangles[j].id)
+	//				shadowh = RayTriangleIntersection(L,triangles[j].position, triangles[j+1].position, triangles[j+2].position,triangles[j].color, triangles[j].id, shadowh);
+	//		}
+	//		
+	//		if(shadowh.distance > 0.f && shadowh.distance < lightDistance)
+	//			t += 0.5f * float4(LightSourceCalc(L, h, pl[i]),0.f);	
+	//		else
+	//			t += 1.0f * float4(LightSourceCalc(L, h, pl[i]),0.f);
+	//		
+	//		color += (h.color*float4(0.1f,0.1f,0.1f,1)) * t;
+	//	}
 
-			if(h.id != s.id)
-				shadowh = RaySphereIntersect(L, s, shadowh);
-			
-			for(int j = 0; j < 36; j+=3)
-			{
-				if(h.id != triangles[j].id)
-					shadowh = RayTriangleIntersection(L,triangles[j].position, triangles[j+1].position, triangles[j+2].position,triangles[j].color, triangles[j].id, shadowh);
-			}
-			
-			if(shadowh.distance > 0.f && shadowh.distance < lightDistance)
-				t += 0.5f * float4(LightSourceCalc(L, h, pl[i]),0.f);	
-			else
-				t += 1.0f * float4(LightSourceCalc(L, h, pl[i]),0.f);
-			
-			color += (h.color*float4(0.1f,0.1f,0.1f,1)) * t;
-		}
-
-		output[threadID.xy] = color;
-	}
+	//	output[threadID.xy] = color;
+	//}
 }
 
 float3 LightSourceCalc(Ray r, HitData h, PointLight l)
@@ -119,80 +120,4 @@ float3 LightSourceCalc(Ray r, HitData h, PointLight l)
 
 	// I = Acolor + Dcolor * N.L + (R.V)n
 	return ambient + diffuse * diff + specular;
-
-	//TEST
-	//float diffusePower = 1;
-	//float3 viewDir = float3(0,1,0);
-	//float specularPower = 0.2f; 
- //   if( diffusePower > 0 )
- //   {
- //           float3 lightDir = l.position - r.origin; //3D position in space of the surface
- //           float distance = length( lightDir );
- //           lightDir = lightDir / distance; // = normalize( lightDir );
- //           distance = distance * distance; //This line may be optimised using Inverse square root
- //
- //           //Intensity of the diffuse light. Saturate to keep within the 0-1 range.
- //           float NdotL = dot( h.normal, lightDir );
- //           float intensity = saturate( NdotL );
- //
- //           // Calculate the diffuse light factoring in light color, power and the attenuation
- //           float3 Diffuse = intensity * l.diffuse * diffusePower / distance; 
- //
- //           //Calculate the half vector between the light vector and the view vector.
- //           //This is faster than calculating the actual reflective vector.
- //           float3 Blinn = normalize( lightDir + viewDir );
- //
- //           //Intensity of the specular light
- //           float NdotBlinn = dot( h.normal, Blinn );
- //           intensity = pow( saturate( NdotBlinn ), 0.2f );
- //
- //           //Sum up the specular light factoring
- //           float3 Specular = intensity * l.specular * specularPower / distance; 
-	//		
-	//	return Specular * Diffuse;
- //   }
-	//else
-	//{
-	//	return float3(0,0,0);
-	//}
-
-	// ORIGINAL
-
-	//float3 litColor = float3(0.0f, 0.0f, 0.0f);
-	//
-	//// The vector from the surface to the light.
-	//float3 lightVec = l.position.xyz - r.origin ;
-	//	
-	//// The distance from surface to light.
-	//float d = length(lightVec);
-	//
-	///*if( d > L.range )
-	//	return float3(0.0f, 0.0f, 0.0f);*/
-	//	
-	//// Normalize the light vector.
-	//lightVec /= d;
-	//
-	//// Add the ambient light term.
-	//litColor += h.color.xyz * l.ambient.xyz;	
-	//
-	//// Add diffuse and specular term, provided the surface is in 
-	//// the line of site of the light.
-	//
-	//float diffuseFactor = dot(lightVec, h.normal);
-	////return float4(1, 1, 1, 1) * diffuseFactor;
-	//[branch]
-	//if( diffuseFactor > 0.0f )
-	//{
-	//	float specPower  = max(h.color.a, 1.0f);
-	//	float3 toEye     = normalize(camPos - r.origin);
-	//	float3 R         = reflect(-lightVec, h.normal);
-	//	float specFactor = pow(max(dot(R, toEye), 0.0f), specPower);
-	//
-	//	// diffuse and specular terms
-	//	litColor += diffuseFactor * h.color.xyz * l.diffuse.xyz;
-	//	//litColor += specFactor * l.specular;// * v.spec;
-	//}
-	//
-	//// attenuate
-	//return litColor / dot(l.att.xyz, float3(1.0f, d, d*d));
 }

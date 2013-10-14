@@ -64,5 +64,6 @@
     <FxCompile Include="structsCompute.fx" />
     <FxCompile Include="PrimaryRayCompute.fx" />
     <FxCompile Include="IntersectionStageCompute.fx" />
+    <FxCompile Include="ColorStageCompute.fx" />
   </ItemGroup>
 </Project>

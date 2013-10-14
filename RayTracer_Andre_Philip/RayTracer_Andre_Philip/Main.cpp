@@ -31,6 +31,7 @@ ComputeWrap*				g_ComputeSys			= NULL;
 ComputeShader*				g_ComputeShader			= NULL;
 ComputeShader*				g_CS_ComputeRay			= NULL;
 ComputeShader*				g_CS_IntersectionStage	= NULL;
+ComputeShader*				g_CS_ColorStage			= NULL;
 ComputeBuffer*				g_ObjectBuffer			= NULL;
 ComputeBuffer*				g_lightBuffer			= NULL;
 ComputeBuffer*				g_rayBuffer				= NULL;
@@ -42,7 +43,7 @@ Camera*						g_camera				= NULL;
 MouseInput*					g_mouseInput			= NULL;
 Buffer*						g_cBuffer				= NULL;
 
-cBufferdata					g_cData;
+cData						g_cData;
 float						g_cameraSpeed			= 50.f;
 int							g_lightSpeed			= 10;
 int							g_nrLights				= 10;
@@ -174,7 +175,7 @@ HRESULT Init()
 	g_mouseInput = new MouseInput(g_hWnd, g_camera, g_Width, g_Height);
 
 	//ComputeShaders
-	g_CS_ComputeRay = g_ComputeSys->CreateComputeShader(_T("PrimaryRayCompute.fx"), NULL, "main", NULL);
+	
 
 	//Buffers!!!!
 	g_cBuffer = new Buffer();
@@ -188,13 +189,13 @@ HRESULT Init()
 	D3DXMatrixInverse(&projInv,NULL, &g_camera->getProjectionMatrix());
 	g_cData.WVP = g_camera->getViewMatrix() * g_camera->getProjectionMatrix();
 	g_cData.projMatInv = projInv;
-	g_cData.viewMat = viewInv;
+	g_cData.viewMatInv = viewInv;
 	g_cData.screenHeight = g_Height;
 	g_cData.screenWidth = g_Width;
 
 	BufferInitDesc desc;
 	desc.initData = &g_cData;
-	desc.elementSize = sizeof(cBufferdata);
+	desc.elementSize = sizeof(cData);
 	desc.numElements = 1;
 	desc.type = CONSTANT_BUFFER_CS;
 	desc.usage = BUFFER_DEFAULT;
@@ -204,18 +205,21 @@ HRESULT Init()
 	g_cBuffer->apply(0);
 
 	Vertex* box = CreateBox(60,D3DXVECTOR3(0,0,0));
-
 	
-
-	g_lightBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(PointLight),sizeof(g_lights)/sizeof(PointLight), true, false, &g_lights,true, "Structured Buffer:Light");
-
 	//Primary rays
+	g_CS_ComputeRay = g_ComputeSys->CreateComputeShader(_T("PrimaryRayCompute.fx"), NULL, "main", NULL);
 	g_rayBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(Ray),g_Height*g_Width, true, true, NULL,true, "Structured Buffer:Rays");
 
 	//IntersectionStage
 	g_CS_IntersectionStage = g_ComputeSys->CreateComputeShader(_T("IntersectionStageCOmpute.fx"), NULL, "main", NULL);
+
 	g_ObjectBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(Vertex),36, true, false, box,false, "Structured Buffer:Triangle");
-	g_hitDataBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(Ray),g_Height*g_Width, true, true, NULL,true, "Structured Buffer:Rays");
+
+	g_hitDataBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(HitData),g_Height*g_Width, true, true, NULL,true, "Structured Buffer:HitData");
+
+	//ColorStage
+	g_CS_ColorStage = g_ComputeSys->CreateComputeShader(_T("ColorStageCompute.fx"), NULL, "main", NULL);
+	g_lightBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(PointLight),sizeof(g_lights)/sizeof(PointLight), true, false, &g_lights,true, "Structured Buffer:Light");
 
 	return S_OK;
 }
@@ -257,7 +261,7 @@ HRESULT Update(float deltaTime)
 	D3DXMATRIX WVP = g_camera->getViewMatrix() * g_camera->getProjectionMatrix();
 	g_cData.WVP = WVP;
 	g_cData.projMatInv = projInv;
-	g_cData.viewMat = viewInv;
+	g_cData.viewMatInv = viewInv;
 
 
 	for(int i = 0; i < 10; i++)
@@ -294,29 +298,53 @@ HRESULT Render(float deltaTime)
 	g_Timer->Stop();
 	g_CS_ComputeRay->Unset();
 
-	//IntersectionStage
-
 	ID3D11ShaderResourceView* bufftri[] = {g_ObjectBuffer->GetResourceView()};
-	g_DeviceContext->CSSetShaderResources(0,1,bufftri);
 
-
-
-	g_CS_IntersectionStage->Set();
-	g_Timer->Start();
-	g_DeviceContext->Dispatch( 25, 25, 1 );
-	g_Timer->Stop();
-	g_CS_IntersectionStage->Unset();
-
+	ID3D11UnorderedAccessView* intersectionBuffer[] = {	g_rayBuffer->GetUnorderedAccessView(),
+														g_hitDataBuffer->GetUnorderedAccessView()};
 	
+	ID3D11ShaderResourceView* colorBuffer[] = {		g_ObjectBuffer->GetResourceView(),
+													g_hitDataBuffer->GetResourceView(),
+													g_lightBuffer->GetResourceView()
+													};
+	//ID3D11UnorderedAccessView* uav[] = { g_BackBufferUAV };
+	for(int i = 0; i < 1; i++)
+	{
+		//IntersectionStage
+		
+		g_DeviceContext->CSSetShaderResources(0,1,bufftri);
+
+		g_DeviceContext->CSSetUnorderedAccessViews(0, 2, intersectionBuffer, NULL);
+
+		g_CS_IntersectionStage->Set();
+		g_Timer->Start();
+		g_DeviceContext->Dispatch( 25, 25, 1 );
+		g_Timer->Stop();
+		g_CS_IntersectionStage->Unset();
+
+		//ColorStage
+		/*PointLight* lightPointer =  g_lightBuffer->Map<PointLight>();
+
+		memcpy(lightPointer, g_lights, sizeof(PointLight)*sizeof(g_lights)/sizeof(PointLight));
+		g_lightBuffer->Unmap();
+		g_lightBuffer->CopyToResource();
+
+		g_DeviceContext->CSSetShaderResources(0,3,colorBuffer);
+		
+		g_DeviceContext->CSSetUnorderedAccessViews(0, 1, uav, NULL);
+
+		g_CS_ColorStage->Set();
+		g_Timer->Start();
+		g_DeviceContext->Dispatch( 25, 25, 1 );
+		g_Timer->Stop();
+		g_CS_ColorStage->Unset();*/
+	}
 
 	//g_cBuffer->apply(0);
-	PointLight* lightPointer =  g_lightBuffer->Map<PointLight>();
-
-	memcpy(lightPointer, g_lights, sizeof(PointLight)*sizeof(g_lights)/sizeof(PointLight));
-	g_lightBuffer->Unmap();
-	g_lightBuffer->CopyToResource();
-
 	
+
+	g_DeviceContext->CSSetShaderResources(0,1,bufftri);
+
 	ID3D11ShaderResourceView* lightBuff[] = {g_lightBuffer->GetResourceView()};
 	g_DeviceContext->CSSetShaderResources(1,1,lightBuff);
 
@@ -325,7 +353,7 @@ HRESULT Render(float deltaTime)
 	ID3D11UnorderedAccessView* uav[] = { g_BackBufferUAV };
 	g_DeviceContext->CSSetUnorderedAccessViews(0, 1, uav, NULL);
 
-	ID3D11ShaderResourceView* rb[] = {g_rayBuffer->GetResourceView()};
+	ID3D11ShaderResourceView* rb[] = {g_hitDataBuffer->GetResourceView()};
 	g_DeviceContext->CSSetShaderResources(2,1,rb);
 
 	//BASIC COMPUTE

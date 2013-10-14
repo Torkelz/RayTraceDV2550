@@ -39,7 +39,7 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 	{
 		h = RayTriangleIntersection(r,Triangles[i].position, Triangles[i+1].position, Triangles[i+2].position,Triangles[i].color ,Triangles[i].id, h);
 	}
-
+	h.color = float4(1,0,0,1);
 
 	OutputHitdata[index] = h;
 	if(h.id != -1)
