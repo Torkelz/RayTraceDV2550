@@ -67,8 +67,8 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 			color += (h.color*float4(0.1f,0.1f,0.1f,1)) * t;
 		}
 
-		output[ThreadID.xy] = color;
-		output[ThreadID.xy] = float4(1,0,0,1);
+		output[ThreadID.xy] = h.color;
+		//output[ThreadID.xy] = float4(1,0,0,1);
 	}
 }
 

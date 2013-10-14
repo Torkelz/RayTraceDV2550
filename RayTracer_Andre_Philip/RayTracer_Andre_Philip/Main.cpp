@@ -308,6 +308,7 @@ HRESULT Render(float deltaTime)
 													g_lightBuffer->GetResourceView()
 													};
 	//ID3D11UnorderedAccessView* uav[] = { g_BackBufferUAV };
+	ID3D11UnorderedAccessView* uav[] = { g_BackBufferUAV };
 	for(int i = 0; i < 1; i++)
 	{
 		//IntersectionStage
@@ -315,6 +316,7 @@ HRESULT Render(float deltaTime)
 		g_DeviceContext->CSSetShaderResources(0,1,bufftri);
 
 		g_DeviceContext->CSSetUnorderedAccessViews(0, 2, intersectionBuffer, NULL);
+		g_DeviceContext->CSSetUnorderedAccessViews(2, 1, uav, NULL);
 
 		g_CS_IntersectionStage->Set();
 		g_Timer->Start();
@@ -343,25 +345,25 @@ HRESULT Render(float deltaTime)
 	//g_cBuffer->apply(0);
 	
 
-	g_DeviceContext->CSSetShaderResources(0,1,bufftri);
+	//g_DeviceContext->CSSetShaderResources(0,1,bufftri);
 
-	ID3D11ShaderResourceView* lightBuff[] = {g_lightBuffer->GetResourceView()};
-	g_DeviceContext->CSSetShaderResources(1,1,lightBuff);
+	//ID3D11ShaderResourceView* lightBuff[] = {g_lightBuffer->GetResourceView()};
+	//g_DeviceContext->CSSetShaderResources(1,1,lightBuff);
 
-	
+	//
 
-	ID3D11UnorderedAccessView* uav[] = { g_BackBufferUAV };
-	g_DeviceContext->CSSetUnorderedAccessViews(0, 1, uav, NULL);
+	//
+	//g_DeviceContext->CSSetUnorderedAccessViews(0, 1, uav, NULL);
 
-	ID3D11ShaderResourceView* rb[] = {g_hitDataBuffer->GetResourceView()};
-	g_DeviceContext->CSSetShaderResources(2,1,rb);
+	//ID3D11ShaderResourceView* rb[] = {g_hitDataBuffer->GetResourceView()};
+	//g_DeviceContext->CSSetShaderResources(2,1,rb);
 
-	//BASIC COMPUTE
-	g_ComputeShader->Set();
-	g_Timer->Start();
-	g_DeviceContext->Dispatch( 25, 25, 1 );
-	g_Timer->Stop();
-	g_ComputeShader->Unset();
+	////BASIC COMPUTE
+	//g_ComputeShader->Set();
+	//g_Timer->Start();
+	//g_DeviceContext->Dispatch( 25, 25, 1 );
+	//g_Timer->Stop();
+	//g_ComputeShader->Unset();
 
 
 	if(FAILED(g_SwapChain->Present( 1, 0 )))

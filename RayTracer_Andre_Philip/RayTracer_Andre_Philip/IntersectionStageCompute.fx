@@ -11,6 +11,7 @@ StructuredBuffer<Vertex> Triangles : register(t0);
 
 RWStructuredBuffer<Ray> IO_Rays : register(u0);
 RWStructuredBuffer<HitData> OutputHitdata : register(u1);
+RWTexture2D<float4> output : register(u2);
 
 
 [numthreads(32, 32, 1)]
@@ -39,9 +40,11 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 	{
 		h = RayTriangleIntersection(r,Triangles[i].position, Triangles[i+1].position, Triangles[i+2].position,Triangles[i].color ,Triangles[i].id, h);
 	}
-	h.color = float4(1,0,0,1);
+	//h.color = float4(1,0,0,1);
 
 	OutputHitdata[index] = h;
+
+	output[ThreadID.xy] = OutputHitdata[index].color;
 	if(h.id != -1)
 	{
 		r.origin = r.origin + r.direction * h.distance;
