@@ -290,7 +290,7 @@ HRESULT Render()
 
 	g_CS_ComputeRay->Set();
 	g_Timer->Start();
-	g_DeviceContext->Dispatch( noDThreadsX, noDThreadsY, noDThreadsZ );
+	g_DeviceContext->Dispatch( noDGroupsX, noDGroupsY, noDGroupsZ );
 	g_Timer->Stop();
 	g_CS_ComputeRay->Unset();
 	////Clear used resources
@@ -306,7 +306,7 @@ HRESULT Render()
 
 		g_CS_IntersectionStage->Set();
 		g_Timer->Start();
-		g_DeviceContext->Dispatch( noDThreadsX, noDThreadsY, noDThreadsZ );
+		g_DeviceContext->Dispatch( noDGroupsX, noDGroupsY, noDGroupsZ );
 		g_Timer->Stop();
 		g_CS_IntersectionStage->Unset();
 		//Clear used resources
@@ -326,7 +326,7 @@ HRESULT Render()
 
 		g_CS_ColorStage->Set();
 		g_Timer->Start();
-		g_DeviceContext->Dispatch( noDThreadsX, noDThreadsY, noDThreadsZ );
+		g_DeviceContext->Dispatch( noDGroupsX, noDGroupsY, noDGroupsZ );
 		g_Timer->Stop();
 		g_CS_ColorStage->Unset();
 		//Clear used resources

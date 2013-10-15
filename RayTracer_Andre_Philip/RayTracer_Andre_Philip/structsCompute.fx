@@ -4,6 +4,9 @@
 #define noThreadsX 32
 #define noThreadsY 32
 #define noThreadsZ 1
+#define noDGroupsX 25
+#define noDGroupsY 25
+#define noDGroupsZ 1
 
 struct cData
 {

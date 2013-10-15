@@ -7,9 +7,7 @@ typedef D3DXMATRIX float4x4;
 
 #include "structsCompute.fx"
 
-#define noDThreadsX 25
-#define noDThreadsY 25
-#define noDThreadsZ 1
+
 
 inline PointLight CreatePointLight(D3DXVECTOR4 _position,	D3DXVECTOR4 _color, D3DXVECTOR4 _diffuse, D3DXVECTOR4 _ambient, D3DXVECTOR4 _specular, D3DXVECTOR4 _att)
 {
