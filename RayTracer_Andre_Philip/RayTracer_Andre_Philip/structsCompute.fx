@@ -65,6 +65,7 @@ struct PointLight
 	float4 ambient;
 	float4 specular;
 	float4 att;
+	float range;
 };
 
 #endif // STRUCTSCOMPUTE

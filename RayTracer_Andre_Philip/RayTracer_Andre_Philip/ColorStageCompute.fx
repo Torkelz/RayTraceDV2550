@@ -44,11 +44,11 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 		
 		float deltaRange = 0.001f;
 		float returnT = 0.0f;
-		int hubba = 0;
+		//float hubba = 0;   ## THE BEST VARIABLE IN THE WORLD!!!!!!
 		//[unroll] //IF FPS PROBLEM REMOVE THIS
 		float angle = 0.0f;
 
-		for(int i = 0; i < 3;i++)
+		for(int i = 0; i < 1;i++)
 		{
 			//NULLIFY
 			t = float4(0, 0, 0, 0);			
@@ -56,60 +56,99 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 			//RECALCULATE
 			float lightDistance = length(pl[i].position.xyz - L.origin);
 			L.direction = normalize(pl[i].position.xyz - L.origin);
-			returnT = RaySphereIntersect(L, s);
-			if(returnT < shadowh || shadowh < 0.0f && returnT > deltaRange)
+			if(h.id != s.id)
 			{
-				shadowh = returnT;
+				returnT = RaySphereIntersect(L, s);
+				if(returnT < shadowh || shadowh < 0.0f && returnT > deltaRange)
+				{
+					shadowh = returnT;
+				}
 			}
-			
 			for(int j = 0; j < 36; j+=3)
 			{
+				if(h.id != Triangles[j].id)
+				{
 					returnT = RayTriangleIntersection(L,Triangles[j].position, Triangles[j+1].position, Triangles[j+2].position);
 					if(returnT < shadowh && returnT > 0.f || shadowh < 0.0f && returnT > 0.f)
 					{
 						shadowh = returnT;
 					}
+				}
 			}
 			
-			if(shadowh > 0.f && shadowh < lightDistance)
+			if(shadowh > deltaRange && shadowh < lightDistance)
 			{
-				t += 0.5f * float4(LightSourceCalc(L, h, pl[i]),0.f);
-				hubba += 1;
+				t += 0.0f * float4(LightSourceCalc(L, h, pl[i]),0.f);
+				//hubba += 1;
 			}
 			else
 			{
 				t += 1.0f * float4(LightSourceCalc(L, h, pl[i]),0.f);
-				hubba += 2;
+				//hubba += 2.0f;
 			}
 			
 			color += (h.color ) * t;//* float4(0.1f,0.1f,0.1f,1)
 		}
-		color /= hubba;
+		//color /= hubba;
 		accOutput[index] += color * h.r.power;
 		output[ThreadID.xy] = accOutput[index];
 
 	}
 }
 
-float3 LightSourceCalc(Ray r, HitData h, PointLight l)
+float3 LightSourceCalc(Ray r, HitData hd, PointLight L)
 {
-	//PHONG
-	float4 diffuse = { 1.0f, 0.0f, 0.0f, 1.0f};
-	diffuse = l.diffuse;
-	float4 ambient = { 0.1f, 0.0f, 0.0f, 1.0f};
-	ambient = l.ambient;
+        float3 litColor = float3(0.0f, 0.0f, 0.0f);
+        //The vector from surface to the light
+        float3 lightVec = L.position.xyz - r.origin;
+        float lightintensity;
+        float3 lightDir;
+        float3 reflection;
+        float4 specular;
+        //the distance deom surface to light
+        float d = length(lightVec);
+        float fade;
+        if(d > L.range)
+                return float3(0.0f, 0.0f, 0.0f);
+        fade = 1 - (d/ L.range);
+        //Normalize light vector
+        lightVec /= d;
 
-	float3 Normal = normalize(h.normal);
-	float3 LightDir = normalize(l.position.xyz - r.origin);
-	float3 ViewDir = -normalize(r.origin - cd.camPos); 
-	float4 diff = saturate(dot(Normal, LightDir)); // diffuse component
+        //Add ambient light term
+        litColor = L.ambient.xyz;
 
-	// R = 2 * (N.L) * N - L
-	float3 Reflect = normalize(2* diff.xyz * h.normal - LightDir); 
-	float4 specular = pow(saturate(dot(Reflect, ViewDir)), 20); // R.V^n
+        lightintensity = saturate(dot(hd.normal, lightVec));
+        litColor += L.diffuse.xyz * lightintensity;
+        lightDir = -lightVec;
+        if(lightintensity > 0.0f)
+        {
+            float shininess = 32;
+            float3 viewDir = normalize(r.origin - cd.camPos);
+            float3 ref = reflect(-lightDir, normalize(hd.normal));
+            float specFac = pow(max(dot(ref, viewDir), 0.0f), shininess);
+            litColor += float3(1.0f, 1.0f, 1.0f) * specFac;
+        }
+        litColor = litColor * hd.color.xyz;
 
-	// I = Acolor + Dcolor * N.L + (R.V)n
-	return ambient.xyz + diffuse.xyz * diff.xyz + specular.xyz;
+        return litColor*fade;
+
+	////PHONG
+	//float4 diffuse = { 1.0f, 0.0f, 0.0f, 1.0f};
+	//diffuse = l.diffuse;
+	//float4 ambient = { 0.1f, 0.0f, 0.0f, 1.0f};
+	//ambient = l.ambient;
+
+	//float3 Normal = normalize(h.normal);
+	//float3 LightDir = normalize(l.position.xyz - r.origin);
+	//float3 ViewDir = -normalize(r.origin - cd.camPos); 
+	//float4 diff = saturate(dot(Normal, LightDir)); // diffuse component
+
+	//// R = 2 * (N.L) * N - L
+	//float3 Reflect = normalize(2* diff.xyz * h.normal - LightDir); 
+	//float4 specular = pow(saturate(dot(Reflect, ViewDir)), 20); // R.V^n
+
+	//// I = Acolor + Dcolor * N.L + (R.V)n
+	//return ambient.xyz + diffuse.xyz * diff.xyz + specular.xyz;
 }
 
 #endif //COLORSTAGECOMPUTE
