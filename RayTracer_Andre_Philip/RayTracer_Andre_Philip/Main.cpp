@@ -36,6 +36,7 @@ ComputeBuffer*				g_ObjectBuffer			= NULL;
 ComputeBuffer*				g_lightBuffer			= NULL;
 ComputeBuffer*				g_rayBuffer				= NULL;
 ComputeBuffer*				g_hitDataBuffer			= NULL;
+ComputeBuffer*				g_accColorBuffer		= NULL;
 
 D3D11Timer*					g_Timer					= NULL;
 
@@ -55,7 +56,7 @@ int g_Width, g_Height;
 //--------------------------------------------------------------------------------------
 HRESULT             InitWindow( HINSTANCE hInstance, int nCmdShow );
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
-HRESULT				Render();
+HRESULT				Render(float deltaTime);
 HRESULT				Update(float deltaTime);
 Vertex*				CreateBox(int size, D3DXVECTOR3 center);
 void				UpdateMovement(float p_dt);
@@ -194,6 +195,7 @@ HRESULT Init()
 	g_cData.viewMatInv = viewInv;
 	g_cData.screenHeight = g_Height;
 	g_cData.screenWidth = g_Width;
+	g_cData.firstPass = true;
 
 	BufferInitDesc desc;
 	desc.initData = &g_cData;
@@ -207,6 +209,8 @@ HRESULT Init()
 	g_cBuffer->apply(0);
 
 	Vertex* box = CreateBox(60,D3DXVECTOR3(0,0,0));
+	//D3DXVECTOR4* dummy;
+	//dummy = (D3DXVECTOR4*) std::calloc(g_Height*g_Width, sizeof(D3DXVECTOR4));
 	
 	//Primary rays
 	g_CS_ComputeRay = g_ComputeSys->CreateComputeShader(_T("PrimaryRayCompute.fx"), NULL, "main", NULL);
@@ -222,7 +226,7 @@ HRESULT Init()
 	//ColorStage
 	g_CS_ColorStage = g_ComputeSys->CreateComputeShader(_T("ColorStageCompute.fx"), NULL, "main", NULL);
 	g_lightBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(PointLight),sizeof(g_lights)/sizeof(PointLight), true, false, &g_lights,true, "Structured Buffer:Light");
-
+	g_accColorBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(D3DXVECTOR4),g_Height*g_Width, true, true, NULL,true, "Structured Buffer:accColor");
 	return S_OK;
 }
 
@@ -262,7 +266,7 @@ HRESULT Update(float deltaTime)
 	return S_OK;
 }
 
-HRESULT Render()
+HRESULT Render(float deltaTime)
 {
 	g_DeviceContext->UpdateSubresource(g_cBuffer->getBufferPointer(), 0, NULL, &g_cData, 0, 0);
 	g_cBuffer->apply(0);
@@ -276,7 +280,8 @@ HRESULT Render()
 	ID3D11ShaderResourceView* bufftri[]				= { g_ObjectBuffer->GetResourceView()};
 
 	ID3D11UnorderedAccessView* uavrays[]			= { g_rayBuffer->GetUnorderedAccessView() };
-	ID3D11UnorderedAccessView* uav[]				= { g_BackBufferUAV };
+	ID3D11UnorderedAccessView* uav[]				= { g_BackBufferUAV,
+														g_accColorBuffer->GetUnorderedAccessView()};
 	ID3D11UnorderedAccessView* intersectionBuffer[] = {	g_rayBuffer->GetUnorderedAccessView(),
 														g_hitDataBuffer->GetUnorderedAccessView()};
 	
@@ -298,7 +303,7 @@ HRESULT Render()
 	// ### PRIMARY RAY END ###
 	rcTime = g_Timer->GetTime();
 
-	for(int i = 0; i < 1; i++)
+	for(int i = 0; i <= BOUNCES; i++)
 	{
 		// ### IntersectionStage ###		
 		g_DeviceContext->CSSetShaderResources(0,1,bufftri);
@@ -313,7 +318,7 @@ HRESULT Render()
 		g_DeviceContext->CSSetUnorderedAccessViews(0, 2, clearuav, NULL);
 		g_DeviceContext->CSSetShaderResources(0,1,clearsrv);
 		// ### IntersectionStage END ###
-		interTime = g_Timer->GetTime();
+		interTime += g_Timer->GetTime();
 		// ### ColorStage ###
 		PointLight* lightPointer =  g_lightBuffer->Map<PointLight>();
 
@@ -322,7 +327,7 @@ HRESULT Render()
 		g_lightBuffer->CopyToResource();
 
 		g_DeviceContext->CSSetShaderResources(0,3,colorBuffer);		
-		g_DeviceContext->CSSetUnorderedAccessViews(0, 1, uav, NULL);
+		g_DeviceContext->CSSetUnorderedAccessViews(0, 2, uav, NULL);
 
 		g_CS_ColorStage->Set();
 		g_Timer->Start();
@@ -331,12 +336,20 @@ HRESULT Render()
 		g_CS_ColorStage->Unset();
 		//Clear used resources
 		g_DeviceContext->CSSetShaderResources(0,3,clearsrv);		
-		g_DeviceContext->CSSetUnorderedAccessViews(0, 1, clearuav, NULL);
+		g_DeviceContext->CSSetUnorderedAccessViews(0, 2, clearuav, NULL);
 		// ### ColorStage END ###
-		colorTime = g_Timer->GetTime();
+		colorTime += g_Timer->GetTime();
+		if(g_cData.firstPass)
+		{
+			g_cData.firstPass = false;
+			g_DeviceContext->UpdateSubresource(g_cBuffer->getBufferPointer(), 0, NULL, &g_cData, 0, 0);
+		}
 	}
 
-	if(FAILED(g_SwapChain->Present( 1, 0 )))
+	g_cData.firstPass = true;
+	g_DeviceContext->UpdateSubresource(g_cBuffer->getBufferPointer(), 0, NULL, &g_cData, 0, 0);
+
+	if(FAILED(g_SwapChain->Present( 0, 0 )))
 		return E_FAIL;
 
 
@@ -344,8 +357,8 @@ HRESULT Render()
 	sprintf_s(
 		title,
 		sizeof(title),
-		"RayTrace - DTime RC: %f, DTime Inters: %f, DTime Color: %f, DTime Total: %f, CamPos %d,%d,%d",
-		rcTime, interTime, colorTime, rcTime + interTime + colorTime,
+		"RayTrace - DTime RC: %f, DTime Inters: %f, DTime Color: %f, DTime Total: %f,CamPos %d,%d,%d",
+		rcTime, interTime/BOUNCES, colorTime/BOUNCES, rcTime + interTime + colorTime,
 		(int)g_camera->getPosition().x,(int)g_camera->getPosition().y,(int)g_camera->getPosition().z
 	);
 	SetWindowText(g_hWnd, title);
@@ -416,7 +429,7 @@ int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 
 			//render
 			Update(dt);
-			Render();
+			Render(dt);
 
 			prevTimeStamp = currTimeStamp;
 		}
@@ -555,52 +568,52 @@ Vertex* CreateBox(int size, D3DXVECTOR3 center)
 												 
 	// Back
 	color = D3DXVECTOR4(0,1,0,1);
-	box[0] = CreateVertex(vert4, color, 1);
-	box[1] = CreateVertex(vert6, color, 1);
-	box[2] = CreateVertex(vert5, color, 1);
-	box[3] = CreateVertex(vert6, color, 2);
-	box[4] = CreateVertex(vert7, color, 2);
-	box[5] = CreateVertex(vert5, color, 2);
+	box[0] = CreateVertex(vert4, color, 1, 0.2f);
+	box[1] = CreateVertex(vert6, color, 1, 0.2f);
+	box[2] = CreateVertex(vert5, color, 1, 0.2f);
+	box[3] = CreateVertex(vert6, color, 2, 0.2f);
+	box[4] = CreateVertex(vert7, color, 2, 0.2f);
+	box[5] = CreateVertex(vert5, color, 2, 0.2f);
 
 	// Front
-	box[6] = CreateVertex(vert1, color, 3);
-	box[7] = CreateVertex(vert3, color, 3);
-	box[8] = CreateVertex(vert0, color, 3);
-	box[9] = CreateVertex(vert3, color, 4);
-	box[10] = CreateVertex(vert2, color, 4);
-	box[11] = CreateVertex(vert0, color, 4);
+	/*box[6] = CreateVertex(vert1, color, 3, 0.2f);
+	box[7] = CreateVertex(vert3, color, 3, 0.2f);
+	box[8] = CreateVertex(vert0, color, 3, 0.2f);
+	box[9] = CreateVertex(vert3, color, 4, 0.2f);
+	box[10] = CreateVertex(vert2, color, 4, 0.2f);
+	box[11] = CreateVertex(vert0, color, 4, 0.2f);*/
 
 	// Top
-	box[12] = CreateVertex(vert3, color, 5);
-	box[13] = CreateVertex(vert7, color, 5);
-	box[14] = CreateVertex(vert2, color, 5);
-	box[15] = CreateVertex(vert7, color, 6);
-	box[16] = CreateVertex(vert6, color, 6);
-	box[17] = CreateVertex(vert2, color, 6);
+	box[12] = CreateVertex(vert3, color, 5, 0.2f);
+	box[13] = CreateVertex(vert7, color, 5, 0.2f);
+	box[14] = CreateVertex(vert2, color, 5, 0.2f);
+	box[15] = CreateVertex(vert7, color, 6, 0.2f);
+	box[16] = CreateVertex(vert6, color, 6, 0.2f);
+	box[17] = CreateVertex(vert2, color, 6, 0.2f);
 
 	// Bottom
-	box[18] = CreateVertex(vert0, color, 7);
-	box[19] = CreateVertex(vert4, color, 7);
-	box[20] = CreateVertex(vert1, color, 7);
-	box[21] = CreateVertex(vert4, color, 8);
-	box[22] = CreateVertex(vert5, color, 8);
-	box[23] = CreateVertex(vert1, color, 8);
+	box[18] = CreateVertex(vert0, color, 7, 0.2f);
+	box[19] = CreateVertex(vert4, color, 7, 0.2f);
+	box[20] = CreateVertex(vert1, color, 7, 0.2f);
+	box[21] = CreateVertex(vert4, color, 8, 0.2f);
+	box[22] = CreateVertex(vert5, color, 8, 0.2f);
+	box[23] = CreateVertex(vert1, color, 8, 0.2f);
 
 	// Right 
-	box[24] = CreateVertex(vert5, color, 9);
-	box[25] = CreateVertex(vert7, color, 9);
-	box[26] = CreateVertex(vert1, color, 9);
-	box[27] = CreateVertex(vert7, color, 10);
-	box[28] = CreateVertex(vert3, color, 10);
-	box[29] = CreateVertex(vert1, color, 10);
+	box[24] = CreateVertex(vert5, color, 9, 0.2f);
+	box[25] = CreateVertex(vert7, color, 9, 0.2f);
+	box[26] = CreateVertex(vert1, color, 9, 0.2f);
+	box[27] = CreateVertex(vert7, color, 10, 0.2f);
+	box[28] = CreateVertex(vert3, color, 10, 0.2f);
+	box[29] = CreateVertex(vert1, color, 10, 0.2f);
 
 	// Left
-	box[30] = CreateVertex(vert0, color, 11);
-	box[31] = CreateVertex(vert2, color, 11);
-	box[32] = CreateVertex(vert4, color, 11);
-	box[33] = CreateVertex(vert2, color, 12);
-	box[34] = CreateVertex(vert6, color, 12);
-	box[35] = CreateVertex(vert4, color, 12);
+	box[30] = CreateVertex(vert0, color, 11, 0.2f);
+	box[31] = CreateVertex(vert2, color, 11, 0.2f);
+	box[32] = CreateVertex(vert4, color, 11, 0.2f);
+	box[33] = CreateVertex(vert2, color, 12, 0.2f);
+	box[34] = CreateVertex(vert6, color, 12, 0.2f);
+	box[35] = CreateVertex(vert4, color, 12, 0.2f);
 
 
 	return box;

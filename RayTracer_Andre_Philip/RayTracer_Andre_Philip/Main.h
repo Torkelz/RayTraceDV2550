@@ -23,14 +23,14 @@ inline PointLight CreatePointLight(D3DXVECTOR4 _position,	D3DXVECTOR4 _color, D3
 	return pl;
 }
 
-inline Vertex CreateVertex(D3DXVECTOR3 _position, D3DXVECTOR4 _color, int _id)
+inline Vertex CreateVertex(D3DXVECTOR3 _position, D3DXVECTOR4 _color, int _id, float _reflection)
 {
 	Vertex v;
 
 	v.position = _position;
 	v.color = _color;
 	v.id = _id;
-
+	v.reflection = _reflection;
 	return v;
 }
 

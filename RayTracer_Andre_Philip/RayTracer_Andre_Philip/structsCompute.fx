@@ -7,6 +7,7 @@
 #define noDGroupsX 25
 #define noDGroupsY 25
 #define noDGroupsZ 1
+#define BOUNCES 3
 
 struct cData
 {
@@ -18,12 +19,14 @@ struct cData
 	int			screenHeight;
 	float		fovX;
 	float		fovY;
+	bool		firstPass;
 };
 
 struct Ray
 {
 	float3 origin;
 	float3 direction;
+	float power;
 };
 
 struct Sphere
@@ -32,6 +35,7 @@ struct Sphere
 	float4 color;
 	float  radius;
 	int id;
+	float reflection; 
 };
 
 struct HitData
@@ -41,13 +45,15 @@ struct HitData
 	float3 normal;
 	int	id;
 	Ray r;
+	float reflection;
 };
 
 struct Vertex
 {
-	float3 position;
-	float4 color;
-	int id;
+	float3	position;
+	float4	color;
+	int		id;
+	float	reflection;
 	//More to come!!
 };
 

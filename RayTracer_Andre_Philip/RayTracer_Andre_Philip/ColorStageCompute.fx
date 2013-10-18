@@ -12,7 +12,9 @@ StructuredBuffer<Vertex> Triangles : register(t0);
 StructuredBuffer<HitData> InputHitdata : register(t1);
 StructuredBuffer<PointLight> pl : register(t2);
 
+
 RWTexture2D<float4> output : register(u0);
+RWStructuredBuffer<float4> accOutput : register(u1);
 
 [numthreads(noThreadsX, noThreadsY, noThreadsZ)]
 void main( uint3 ThreadID : SV_DispatchThreadID )
@@ -25,9 +27,12 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 	s.color = float4(0.9,0,0,1);
 	s.id = 0;
 
+	if(cd.firstPass)
+		accOutput[index] = float4(0,0,0,0);
+
 	if(h.id == -1)
 	{
-		output[ThreadID.xy] = h.color;
+		output[ThreadID.xy] = float4(0,0,0,1);
 	}
 	else
 	{
@@ -35,39 +40,54 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 		float4 color = float4(0,0,0,0);
 		Ray L;// Tänka på att inte skriva till texturen sen!!!! utan att eventuellt kolla om de ska göras.
 		L.origin = h.r.origin + (h.r.direction *h.distance);
-		HitData shadowh;
-		shadowh.color = float4(0,0,0,1);
-		shadowh.id = -1;
-		shadowh.normal = float3(0,0,0);
+		float shadowh;
+		
+		float deltaRange = 0.001f;
+		float returnT = 0.0f;
+		int hubba = 0;
 		//[unroll] //IF FPS PROBLEM REMOVE THIS
-		for(int i = 0; i < 10;i++)
+		float angle = 0.0f;
+
+		for(int i = 0; i < 3;i++)
 		{
 			//NULLIFY
 			t = float4(0, 0, 0, 0);			
-			shadowh.distance = -1.f;
-			shadowh.id = -1;
+			shadowh= -1.f;
 			//RECALCULATE
 			float lightDistance = length(pl[i].position.xyz - L.origin);
 			L.direction = normalize(pl[i].position.xyz - L.origin);
-
-			if(h.id != s.id)
-				shadowh = RaySphereIntersect(L, s, shadowh);
+			returnT = RaySphereIntersect(L, s);
+			if(returnT < shadowh || shadowh < 0.0f && returnT > deltaRange)
+			{
+				shadowh = returnT;
+			}
 			
 			for(int j = 0; j < 36; j+=3)
 			{
-				if(h.id != Triangles[j].id)
-					shadowh = RayTriangleIntersection(L,Triangles[j].position, Triangles[j+1].position, Triangles[j+2].position,Triangles[j].color, Triangles[j].id, shadowh);
+					returnT = RayTriangleIntersection(L,Triangles[j].position, Triangles[j+1].position, Triangles[j+2].position);
+					if(returnT < shadowh && returnT > 0.f || shadowh < 0.0f && returnT > 0.f)
+					{
+						shadowh = returnT;
+					}
 			}
 			
-			if(shadowh.distance > 0.f && shadowh.distance < lightDistance)
-				t += 0.5f * float4(LightSourceCalc(L, h, pl[i]),0.f);	
+			if(shadowh > 0.f && shadowh < lightDistance)
+			{
+				t += 0.5f * float4(LightSourceCalc(L, h, pl[i]),0.f);
+				hubba += 1;
+			}
 			else
+			{
 				t += 1.0f * float4(LightSourceCalc(L, h, pl[i]),0.f);
+				hubba += 2;
+			}
 			
-			color += (h.color*float4(0.1f,0.1f,0.1f,1)) * t;
+			color += (h.color ) * t;//* float4(0.1f,0.1f,0.1f,1)
 		}
+		color /= hubba;
+		accOutput[index] += color * h.r.power;
+		output[ThreadID.xy] = accOutput[index];
 
-		output[ThreadID.xy] = color;
 	}
 }
 
