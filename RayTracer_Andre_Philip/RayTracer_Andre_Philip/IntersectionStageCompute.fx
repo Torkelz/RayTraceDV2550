@@ -7,6 +7,10 @@
 
 cbuffer cBufferdata : register(b0){cData cd;};
 StructuredBuffer<Vertex> Triangles : register(t0);
+StructuredBuffer<OBJVertex> OBJ : register(t1);
+StructuredBuffer<DWORD> Indices : register(t2);
+
+Texture2D objtexture : register(t3);
 
 RWStructuredBuffer<Ray> IO_Rays : register(u0);
 RWStructuredBuffer<HitData> OutputHitdata : register(u1);
@@ -15,13 +19,13 @@ RWStructuredBuffer<HitData> OutputHitdata : register(u1);
 void main( uint3 ThreadID : SV_DispatchThreadID )
 {
 	int index = ThreadID.x+(ThreadID.y*cd.screenWidth);
+	int increasingID = 0;
 
 	Sphere s;
-	s.position = float3(0,0,0);
-	s.radius = 5.f;
+	s.position = float3(-13,10,0);
+	s.radius = 2.f;
 	s.color = float4(0.9,0,0,1);
-	s.id = 0;
-	s.reflection = .5f;
+	s.reflection = 1.f;
 
 	Ray r = IO_Rays[index];
 
@@ -34,45 +38,78 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 	h.r.power = r.power;
 	h.reflection = 0.0f;
 	h.id = -1;
+	h.materialID = -1;
 
 	if(cd.firstPass)// && OutputHitdata[index].id != -1)		
 		h.id = -1;
 	else
 		h.id = OutputHitdata[index].id;
 	
-	float deltaRange = 0.001f;
+	float deltaRange = 0.0001f;
 	float returnT = -1.0f;
 	int tempID = -1;
 
-	if(h.id != s.id)
+	//if(h.id != s.id)
+	if( h.id != increasingID)
 	{
 		returnT = RaySphereIntersect(r, s);
 		if(returnT < h.distance || h.distance < 0.0f && returnT > deltaRange)
 		{
 			h.distance = returnT;
 			h.color = s.color;
-			tempID = s.id;
+			//tempID = s.id;
+			tempID = increasingID;
 			h.reflection = s.reflection;
 			h.normal = normalize(r.origin + returnT*r.direction - s.position);
 		}
+		increasingID++;
 	}
-	
+	float4 returnT4 = float4(0,0,0,0);
 	for(int i = 0; i < 36; i+=3)
 	{
-		if(h.id != Triangles[i].id)
+		//if(h.id != Triangles[i].id)
+		if( h.id != increasingID)
 		{
-			returnT = RayTriangleIntersection(r,Triangles[i].position, Triangles[i+1].position, Triangles[i+2].position);
-
-			if(returnT < h.distance && returnT > 0.f || h.distance < 0.0f && returnT > 0.f)
+			returnT4 = RayTriangleIntersection(r,Triangles[i].position, Triangles[i+1].position, Triangles[i+2].position);
+			returnT = returnT4.x;
+			if(returnT < h.distance && returnT > deltaRange || h.distance < 0.0f && returnT > deltaRange)
 			{
 				h.distance = returnT;
 				h.color = Triangles[i].color;
-				tempID = Triangles[i].id;
+				//tempID = Triangles[i].id;
+				tempID = increasingID;
 				h.reflection = Triangles[i].reflection;
 				h.normal = normalize(cross(Triangles[i+1].position-Triangles[i].position,Triangles[i+2].position-Triangles[i].position));
 			}
 		}
+		increasingID++;
 	}
+	//[unroll(100)]
+	for(int i = 0; i < 894; i+=3)
+	{
+		//if(h.id != Triangles[i].id)
+		if( h.id != increasingID)
+		{
+			returnT4 = RayTriangleIntersection(r,mul(float4(OBJ[i].position,1), cd.scale).xyz, mul(float4(OBJ[i+1].position,1), cd.scale).xyz, mul(float4(OBJ[i+2].position,1), cd.scale).xyz);
+			returnT = returnT4.x;
+
+			if(returnT < h.distance && returnT > deltaRange || h.distance < 0.0f && returnT > deltaRange)
+			{
+				h.distance = returnT;
+				float2 uvCoord = returnT4.w*OBJ[i].texCoord + returnT4.y*OBJ[i+1].texCoord +returnT4.z * OBJ[i+2].texCoord;
+				uvCoord *= 512;
+				h.materialID = OBJ[i].materialID;
+				h.color = objtexture[uvCoord];
+				tempID = increasingID;
+				h.reflection = 0.0f;//Triangles[i].reflection;
+				h.normal = OBJ[i].normal;//normalize(cross(Triangles[i+1].position-Triangles[i].position,Triangles[i+2].position-Triangles[i].position));
+			}
+		}
+		increasingID++;
+	}
+
+
+
 	if(tempID != -1)
 		h.id = tempID;
 	

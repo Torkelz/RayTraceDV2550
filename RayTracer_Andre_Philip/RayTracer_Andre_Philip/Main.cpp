@@ -13,6 +13,7 @@
 #include "ComputeHelp.h"
 #include "D3D11Timer.h"
 #include "Main.h"
+#include "OBJLoader.h"
 
 
 //--------------------------------------------------------------------------------------
@@ -33,16 +34,25 @@ ComputeShader*				g_CS_IntersectionStage	= NULL;
 ComputeShader*				g_CS_ColorStage			= NULL;
 
 ComputeBuffer*				g_ObjectBuffer			= NULL;
+ComputeBuffer*				g_OBJBuffer				= NULL;
+ComputeBuffer*				g_indexBuffer			= NULL;
 ComputeBuffer*				g_lightBuffer			= NULL;
 ComputeBuffer*				g_rayBuffer				= NULL;
 ComputeBuffer*				g_hitDataBuffer			= NULL;
 ComputeBuffer*				g_accColorBuffer		= NULL;
+ComputeBuffer*				g_materialBuffer		= NULL;
 
 D3D11Timer*					g_Timer					= NULL;
 
 Camera*						g_camera				= NULL;
 MouseInput*					g_mouseInput			= NULL;
 Buffer*						g_cBuffer				= NULL;
+Loader*						g_loader				= NULL;
+OBJMaterial					g_material				;
+vector<OBJMaterial>			g_materialList			;
+
+ID3D11ShaderResourceView*	g_objTexture			= NULL;
+
 
 cData						g_cData;
 float						g_cameraSpeed			= 50.f;
@@ -175,7 +185,7 @@ HRESULT Init()
 
 	//BEGIN OF OWN CODE
 
-	g_camera = new Camera(D3DXVECTOR3(0,0,-10));
+	g_camera = new Camera(D3DXVECTOR3(0,0,-100));
 	g_camera->createProjectionMatrix(0.4f*PI, (float)g_Width/g_Height, 1.0f, 1000.0f);
 	g_camera->setViewMatrix(g_camera->getPosition());
 	g_mouseInput = new MouseInput(g_hWnd, g_camera, g_Width, g_Height);
@@ -208,25 +218,48 @@ HRESULT Init()
 	g_DeviceContext->UpdateSubresource(g_cBuffer->getBufferPointer(), 0, NULL, &g_cData, 0, 0);
 	g_cBuffer->apply(0);
 
-	Vertex* box = CreateBox(60,D3DXVECTOR3(0,0,0));
+	Vertex* box = CreateBox(40,D3DXVECTOR3(0,0,0));
 	//D3DXVECTOR4* dummy;
 	//dummy = (D3DXVECTOR4*) std::calloc(g_Height*g_Width, sizeof(D3DXVECTOR4));
-	
+
+	g_loader = new Loader("obj//");
+	g_loader->loadFile("sf.obj");
+
+	for(int i = 0; i < g_loader->getMaterialId(); i++)
+	{
+		g_material.Ka = g_loader->GetMaterialAt(0).Ka;
+		g_material.Kd = g_loader->GetMaterialAt(0).Kd;
+		g_material.Ks = g_loader->GetMaterialAt(0).Ks;
+		g_material.Ni = g_loader->GetMaterialAt(0).Ni;
+		g_material.Ns = g_loader->GetMaterialAt(0).Ns;
+		g_materialList.push_back(g_material);
+	}
+
+	g_cData.nrIndices = g_loader->getVertices().size();
+	D3DXMatrixScaling(&g_cData.scale, 1.0f,1.0f,1.0f);
+	g_DeviceContext->UpdateSubresource(g_cBuffer->getBufferPointer(), 0, NULL, &g_cData, 0, 0);
+
 	//Primary rays
 	g_CS_ComputeRay = g_ComputeSys->CreateComputeShader(_T("PrimaryRayCompute.fx"), NULL, "main", NULL);
 	g_rayBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(Ray),g_Height*g_Width, true, true, NULL,true, "Structured Buffer:Rays");
 
 	//IntersectionStage
 	g_CS_IntersectionStage = g_ComputeSys->CreateComputeShader(_T("IntersectionStageCOmpute.fx"), NULL, "main", NULL);
-
-	g_ObjectBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(Vertex),36, true, false, box,false, "Structured Buffer:Triangle");
+	
+	g_ObjectBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(Vertex),36, true, false, box,false, "Structured Buffer:BOXVertex");
+	g_OBJBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(OBJVertex),g_loader->getVertices().size(), true, false, g_loader->getVertices().data(),false, "Structured Buffer:OBJVertex");
+	g_indexBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(DWORD),g_loader->getIndices().size(), true, false, g_loader->getIndices().data(),false, "Structured Buffer:Indices");
 
 	g_hitDataBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(HitData),g_Height*g_Width, true, true, NULL,true, "Structured Buffer:HitData");
+
+	D3DX11CreateShaderResourceViewFromFile(g_Device, g_loader->GetMaterialAt(0).map_Kd,NULL,NULL,&g_objTexture, &hr);
 
 	//ColorStage
 	g_CS_ColorStage = g_ComputeSys->CreateComputeShader(_T("ColorStageCompute.fx"), NULL, "main", NULL);
 	g_lightBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(PointLight),sizeof(g_lights)/sizeof(PointLight), true, false, &g_lights,true, "Structured Buffer:Light");
 	g_accColorBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(D3DXVECTOR4),g_Height*g_Width, true, true, NULL,true, "Structured Buffer:accColor");
+	g_materialBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(OBJMaterial),g_materialList.size(), true, false, g_materialList.data(),false, "Structured Buffer:OBJMaterail");
+	
 	return S_OK;
 }
 
@@ -274,10 +307,13 @@ HRESULT Render(float deltaTime)
 	double rcTime, interTime, colorTime;
 	rcTime = interTime = colorTime = 0.f;
 
-	ID3D11UnorderedAccessView* clearuav[]			= { 0,0,0,0,0 };
-	ID3D11ShaderResourceView* clearsrv[]			= { 0,0,0,0,0 };
+	ID3D11UnorderedAccessView* clearuav[]			= { 0,0,0,0,0,0,0 };
+	ID3D11ShaderResourceView* clearsrv[]			= { 0,0,0,0,0,0,0 };
 
-	ID3D11ShaderResourceView* bufftri[]				= { g_ObjectBuffer->GetResourceView()};
+	ID3D11ShaderResourceView* bufftri[]				= { g_ObjectBuffer->GetResourceView(),
+														g_OBJBuffer->GetResourceView(),
+														g_indexBuffer->GetResourceView(),
+														g_objTexture};
 
 	ID3D11UnorderedAccessView* uavrays[]			= { g_rayBuffer->GetUnorderedAccessView() };
 	ID3D11UnorderedAccessView* uav[]				= { g_BackBufferUAV,
@@ -287,8 +323,10 @@ HRESULT Render(float deltaTime)
 	
 	ID3D11ShaderResourceView* colorBuffer[]			= {	g_ObjectBuffer->GetResourceView(),
 														g_hitDataBuffer->GetResourceView(),
-														g_lightBuffer->GetResourceView()
-														};
+														g_lightBuffer->GetResourceView(),
+														g_OBJBuffer->GetResourceView(),
+														g_indexBuffer->GetResourceView(),
+														g_materialBuffer->GetResourceView()};
 
 	// ### PRIMARY RAY ###
 	g_DeviceContext->CSSetUnorderedAccessViews(0, 1, uavrays, NULL);
@@ -306,7 +344,7 @@ HRESULT Render(float deltaTime)
 	for(int i = 0; i <= BOUNCES; i++)
 	{
 		// ### IntersectionStage ###		
-		g_DeviceContext->CSSetShaderResources(0,1,bufftri);
+		g_DeviceContext->CSSetShaderResources(0,4,bufftri);
 		g_DeviceContext->CSSetUnorderedAccessViews(0, 2, intersectionBuffer, NULL);
 
 		g_CS_IntersectionStage->Set();
@@ -316,17 +354,17 @@ HRESULT Render(float deltaTime)
 		g_CS_IntersectionStage->Unset();
 		//Clear used resources
 		g_DeviceContext->CSSetUnorderedAccessViews(0, 2, clearuav, NULL);
-		g_DeviceContext->CSSetShaderResources(0,1,clearsrv);
+		g_DeviceContext->CSSetShaderResources(0,4,clearsrv);
 		// ### IntersectionStage END ###
 		interTime += g_Timer->GetTime();
 		// ### ColorStage ###
-		PointLight* lightPointer =  g_lightBuffer->Map<PointLight>();
+		/*PointLight* lightPointer =  g_lightBuffer->Map<PointLight>();
 
 		memcpy(lightPointer, g_lights, sizeof(PointLight)*sizeof(g_lights)/sizeof(PointLight));
 		g_lightBuffer->Unmap();
-		g_lightBuffer->CopyToResource();
+		g_lightBuffer->CopyToResource();*/
 
-		g_DeviceContext->CSSetShaderResources(0,3,colorBuffer);		
+		g_DeviceContext->CSSetShaderResources(0,6,colorBuffer);		
 		g_DeviceContext->CSSetUnorderedAccessViews(0, 2, uav, NULL);
 
 		g_CS_ColorStage->Set();
@@ -335,7 +373,7 @@ HRESULT Render(float deltaTime)
 		g_Timer->Stop();
 		g_CS_ColorStage->Unset();
 		//Clear used resources
-		g_DeviceContext->CSSetShaderResources(0,3,clearsrv);		
+		g_DeviceContext->CSSetShaderResources(0,6,clearsrv);		
 		g_DeviceContext->CSSetUnorderedAccessViews(0, 2, clearuav, NULL);
 		// ### ColorStage END ###
 		colorTime += g_Timer->GetTime();
@@ -358,7 +396,7 @@ HRESULT Render(float deltaTime)
 		title,
 		sizeof(title),
 		"RayTrace - DTime RC: %f, DTime Inters: %f, DTime Color: %f, DTime Total: %f,CamPos %d,%d,%d",
-		rcTime, interTime/BOUNCES, colorTime/BOUNCES, rcTime + interTime + colorTime,
+		rcTime, interTime/(BOUNCES+1), colorTime/(BOUNCES+1), rcTime + interTime + colorTime,
 		(int)g_camera->getPosition().x,(int)g_camera->getPosition().y,(int)g_camera->getPosition().z
 	);
 	SetWindowText(g_hWnd, title);

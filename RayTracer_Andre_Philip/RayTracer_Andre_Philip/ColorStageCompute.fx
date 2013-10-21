@@ -4,13 +4,17 @@
 #include "structsCompute.fx"
 #include "IntersectionCompute.fx"
 
-float3 LightSourceCalc(Ray r, HitData h, PointLight l);
+float3 LightSourceCalc(Ray r, HitData h, PointLight l, int materialID);
 
 cbuffer cBufferdata : register(b0){cData cd;};
 
 StructuredBuffer<Vertex> Triangles : register(t0);
 StructuredBuffer<HitData> InputHitdata : register(t1);
 StructuredBuffer<PointLight> pl : register(t2);
+
+StructuredBuffer<OBJVertex> OBJ : register(t3);
+StructuredBuffer<DWORD> Indices : register(t4);
+StructuredBuffer<OBJMaterial> material : register(t5);
 
 
 RWTexture2D<float4> output : register(u0);
@@ -20,12 +24,15 @@ RWStructuredBuffer<float4> accOutput : register(u1);
 void main( uint3 ThreadID : SV_DispatchThreadID )
 {
 	int index = ThreadID.x+(ThreadID.y*cd.screenWidth);
+	int increasingID = 0;
+
 	HitData h = InputHitdata[index];
 	Sphere s;
-	s.position = float3(0,0,0);
-	s.radius = 5.f;
+	s.position = float3(-13,10,0);
+	s.radius = 2.f;
 	s.color = float4(0.9,0,0,1);
 	s.id = 0;
+	s.reflection = 1.f;
 
 	if(cd.firstPass)
 		accOutput[index] = float4(0,0,0,0);
@@ -44,46 +51,79 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 		
 		float deltaRange = 0.001f;
 		float returnT = 0.0f;
+		float4 returnT4 = float4(0,0,0,0);
 		//float hubba = 0;   ## THE BEST VARIABLE IN THE WORLD!!!!!!
 		//[unroll] //IF FPS PROBLEM REMOVE THIS
 		float angle = 0.0f;
 
-		for(int i = 0; i < 1;i++)
+		for(int i = 0; i < 3;i++)
 		{
+			bool shadow = false;
+			increasingID = 0;
 			//NULLIFY
 			t = float4(0, 0, 0, 0);			
 			shadowh= -1.f;
 			//RECALCULATE
 			float lightDistance = length(pl[i].position.xyz - L.origin);
 			L.direction = normalize(pl[i].position.xyz - L.origin);
-			if(h.id != s.id)
+			//if(h.id != s.id)
+			if(h.id != increasingID)
 			{
 				returnT = RaySphereIntersect(L, s);
 				if(returnT < shadowh || shadowh < 0.0f && returnT > deltaRange)
 				{
 					shadowh = returnT;
+					shadow = true;
 				}
+				increasingID++;
 			}
+			if(true)
+			{
 			for(int j = 0; j < 36; j+=3)
 			{
-				if(h.id != Triangles[j].id)
+				//if(h.id != Triangles[j].id)
+				if(h.id != increasingID)
 				{
-					returnT = RayTriangleIntersection(L,Triangles[j].position, Triangles[j+1].position, Triangles[j+2].position);
-					if(returnT < shadowh && returnT > 0.f || shadowh < 0.0f && returnT > 0.f)
+					returnT4 = RayTriangleIntersection(L,Triangles[j].position, Triangles[j+1].position, Triangles[j+2].position);
+					returnT = returnT4.x;
+					if(returnT < shadowh && returnT > deltaRange || shadowh < 0.0f && returnT > deltaRange)
 					{
 						shadowh = returnT;
+						shadow = true;
 					}
 				}
+				increasingID++;
+			}
+			}
+			if(true)
+			{
+			for(int j = 0; j < 894; j+=3)
+			{
+				//if(h.id != Triangles[i].id)
+				if( h.id != increasingID)
+				{
+					returnT4 = RayTriangleIntersection(L,mul(float4(OBJ[j].position,1), cd.scale).xyz, mul(float4(OBJ[j+1].position,1), cd.scale).xyz, mul(float4(OBJ[j+2].position,1), cd.scale).xyz);
+					returnT = returnT4.x;
+
+					if(returnT < shadowh && returnT > deltaRange || shadowh < 0.0f && returnT > deltaRange)
+					{
+						shadowh = returnT;
+						j = 894;
+						shadow = true;
+					}
+				}
+				increasingID++;
+			}
 			}
 			
 			if(shadowh > deltaRange && shadowh < lightDistance)
 			{
-				t += 0.0f * float4(LightSourceCalc(L, h, pl[i]),0.f);
+				t += 0.0f * float4(LightSourceCalc(L, h, pl[i], h.materialID),0.f);
 				//hubba += 1;
 			}
 			else
 			{
-				t += 1.0f * float4(LightSourceCalc(L, h, pl[i]),0.f);
+				t += 1.0f * float4(LightSourceCalc(L, h, pl[i], h.materialID),0.f);
 				//hubba += 2.0f;
 			}
 			
@@ -92,19 +132,36 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 		//color /= hubba;
 		accOutput[index] += color * h.r.power;
 		output[ThreadID.xy] = accOutput[index];
-
 	}
 }
 
-float3 LightSourceCalc(Ray r, HitData hd, PointLight L)
+float3 LightSourceCalc(Ray r, HitData hd, PointLight L, int materialID)
 {
+		
         float3 litColor = float3(0.0f, 0.0f, 0.0f);
         //The vector from surface to the light
         float3 lightVec = L.position.xyz - r.origin;
         float lightintensity;
         float3 lightDir;
         float3 reflection;
-        float4 specular;
+        float3 specular;
+		float3 ambient;
+		float3 diffuse;
+		float shininess;
+		if(materialID != -1)
+		{
+			diffuse = material[materialID].Kd;
+			ambient = material[materialID].Ka;
+			specular = material[materialID].Ks;
+			shininess = material[materialID].Ns;
+		}
+		else
+		{
+			diffuse = L.diffuse.xyz;
+			ambient = L.ambient.xyz;
+			specular = float3(1.0f, 1.0f, 1.0f);
+			shininess = 32;
+		}
         //the distance deom surface to light
         float d = length(lightVec);
         float fade;
@@ -113,42 +170,24 @@ float3 LightSourceCalc(Ray r, HitData hd, PointLight L)
         fade = 1 - (d/ L.range);
         //Normalize light vector
         lightVec /= d;
-
+		litColor = ambient.xyz;
         //Add ambient light term
-        litColor = L.ambient.xyz;
+        
 
         lightintensity = saturate(dot(hd.normal, lightVec));
-        litColor += L.diffuse.xyz * lightintensity;
+        litColor += diffuse.xyz * lightintensity;
         lightDir = -lightVec;
         if(lightintensity > 0.0f)
         {
-            float shininess = 32;
+            
             float3 viewDir = normalize(r.origin - cd.camPos);
             float3 ref = reflect(-lightDir, normalize(hd.normal));
             float specFac = pow(max(dot(ref, viewDir), 0.0f), shininess);
-            litColor += float3(1.0f, 1.0f, 1.0f) * specFac;
+            litColor += specular.xyz * specFac;
         }
         litColor = litColor * hd.color.xyz;
 
         return litColor*fade;
-
-	////PHONG
-	//float4 diffuse = { 1.0f, 0.0f, 0.0f, 1.0f};
-	//diffuse = l.diffuse;
-	//float4 ambient = { 0.1f, 0.0f, 0.0f, 1.0f};
-	//ambient = l.ambient;
-
-	//float3 Normal = normalize(h.normal);
-	//float3 LightDir = normalize(l.position.xyz - r.origin);
-	//float3 ViewDir = -normalize(r.origin - cd.camPos); 
-	//float4 diff = saturate(dot(Normal, LightDir)); // diffuse component
-
-	//// R = 2 * (N.L) * N - L
-	//float3 Reflect = normalize(2* diff.xyz * h.normal - LightDir); 
-	//float4 specular = pow(saturate(dot(Reflect, ViewDir)), 20); // R.V^n
-
-	//// I = Acolor + Dcolor * N.L + (R.V)n
-	//return ambient.xyz + diffuse.xyz * diff.xyz + specular.xyz;
 }
 
 #endif //COLORSTAGECOMPUTE

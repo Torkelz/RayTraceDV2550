@@ -17,14 +17,17 @@
     <ClCompile Include="D3D11Timer.cpp" />
     <ClCompile Include="Main.cpp" />
     <ClCompile Include="MouseInput.cpp" />
+    <ClCompile Include="OBJLoader.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Buffer.h" />
     <ClInclude Include="Camera.h" />
     <ClInclude Include="ComputeHelp.h" />
     <ClInclude Include="D3D11Timer.h" />
+    <ClInclude Include="d3dUtil.h" />
     <ClInclude Include="Main.h" />
     <ClInclude Include="MouseInput.h" />
+    <ClInclude Include="OBJLoader.h" />
     <ClInclude Include="stdafx.h" />
   </ItemGroup>
   <ItemGroup>
@@ -115,6 +118,7 @@
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
+      <AdditionalDependencies>D3D11.lib;D3dcompiler.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">

@@ -7,19 +7,21 @@
 #define noDGroupsX 25
 #define noDGroupsY 25
 #define noDGroupsZ 1
-#define BOUNCES 3
+#define BOUNCES 0
 
 struct cData
 {
 	float4x4	viewMatInv;
 	float4x4	projMatInv;
 	float4x4	WVP;
+	float4x4	scale;
 	float3		camPos;
 	int			screenWidth;
 	int			screenHeight;
 	float		fovX;
 	float		fovY;
 	bool		firstPass;
+	int			nrIndices;
 };
 
 struct Ray
@@ -46,6 +48,7 @@ struct HitData
 	int	id;
 	Ray r;
 	float reflection;
+	int materialID;
 };
 
 struct Vertex
@@ -66,6 +69,23 @@ struct PointLight
 	float4 specular;
 	float4 att;
 	float range;
+};
+
+struct OBJVertex
+{
+	float3 position;
+	float2 texCoord;
+	float3 normal;
+	int materialID;
+};
+
+struct OBJMaterial
+{
+	float3 Kd;
+	float3 Ka;
+	float3 Ks;
+	float Ni;
+	float Ns;
 };
 
 #endif // STRUCTSCOMPUTE
