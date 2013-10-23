@@ -34,6 +34,7 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 	s.id = 0;
 	s.reflection = 1.f;
 
+
 	if(cd.firstPass)
 		accOutput[index] = float4(0,0,0,0);
 
@@ -55,10 +56,10 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 		//float hubba = 0;   ## THE BEST VARIABLE IN THE WORLD!!!!!!
 		//[unroll] //IF FPS PROBLEM REMOVE THIS
 		float angle = 0.0f;
-
+		int numV = cd.nrVertices;
+		float4x4 scale = cd.scale;
 		for(int i = 0; i < 3;i++)
 		{
-			bool shadow = false;
 			increasingID = 0;
 			//NULLIFY
 			t = float4(0, 0, 0, 0);			
@@ -73,12 +74,9 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 				if(returnT < shadowh || shadowh < 0.0f && returnT > deltaRange)
 				{
 					shadowh = returnT;
-					shadow = true;
 				}
 				increasingID++;
 			}
-			if(true)
-			{
 			for(int j = 0; j < 36; j+=3)
 			{
 				//if(h.id != Triangles[j].id)
@@ -89,31 +87,25 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 					if(returnT < shadowh && returnT > deltaRange || shadowh < 0.0f && returnT > deltaRange)
 					{
 						shadowh = returnT;
-						shadow = true;
 					}
 				}
 				increasingID++;
 			}
-			}
-			if(true)
-			{
-			for(int j = 0; j < 894; j+=3)
+			for(int j = 0; j < numV; j+=3)
 			{
 				//if(h.id != Triangles[i].id)
 				if( h.id != increasingID)
 				{
-					returnT4 = RayTriangleIntersection(L,mul(float4(OBJ[j].position,1), cd.scale).xyz, mul(float4(OBJ[j+1].position,1), cd.scale).xyz, mul(float4(OBJ[j+2].position,1), cd.scale).xyz);
+					returnT4 = RayTriangleIntersection(L,mul(float4(OBJ[j].position,1), scale).xyz, mul(float4(OBJ[j+1].position,1), scale).xyz, mul(float4(OBJ[j+2].position,1), scale).xyz);
 					returnT = returnT4.x;
 
 					if(returnT < shadowh && returnT > deltaRange || shadowh < 0.0f && returnT > deltaRange)
 					{
 						shadowh = returnT;
-						j = 894;
-						shadow = true;
+						j = numV;
 					}
 				}
 				increasingID++;
-			}
 			}
 			
 			if(shadowh > deltaRange && shadowh < lightDistance)
@@ -148,20 +140,19 @@ float3 LightSourceCalc(Ray r, HitData hd, PointLight L, int materialID)
 		float3 ambient;
 		float3 diffuse;
 		float shininess;
+		diffuse = L.diffuse.xyz;
+		ambient = L.ambient.xyz;
+		specular = float3(1.0f, 1.0f, 1.0f);
+		shininess = 2;
+
 		if(materialID != -1)
 		{
-			diffuse = material[materialID].Kd;
-			ambient = material[materialID].Ka;
-			specular = material[materialID].Ks;
-			shininess = material[materialID].Ns;
+			diffuse  *= material[materialID].Kd.xyz;
+			ambient	 *= material[materialID].Ka.xyz;
+			specular *= material[materialID].Ks.xyz;
+			//shininess *= material[materialID].Ns;
 		}
-		else
-		{
-			diffuse = L.diffuse.xyz;
-			ambient = L.ambient.xyz;
-			specular = float3(1.0f, 1.0f, 1.0f);
-			shininess = 32;
-		}
+
         //the distance deom surface to light
         float d = length(lightVec);
         float fade;

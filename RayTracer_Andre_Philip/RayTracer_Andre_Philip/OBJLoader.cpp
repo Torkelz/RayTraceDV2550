@@ -83,6 +83,7 @@ bool Loader::loadFile(string fileName)
 						line >> iNormal;
 						vertex.normal = Normals[iNormal-1];
 					}
+					vertex.materialID = materialID;
 					Vertices.push_back(vertex);
 					//DWORD index = addVertex2(&vertex);
 					//indices.push_back(index);

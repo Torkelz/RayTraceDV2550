@@ -225,17 +225,17 @@ HRESULT Init()
 	g_loader = new Loader("obj//");
 	g_loader->loadFile("sf.obj");
 
-	for(int i = 0; i < g_loader->getMaterialId(); i++)
+	for(int i = 0; i <= g_loader->getMaterialId(); i++)
 	{
-		g_material.Ka = g_loader->GetMaterialAt(0).Ka;
-		g_material.Kd = g_loader->GetMaterialAt(0).Kd;
-		g_material.Ks = g_loader->GetMaterialAt(0).Ks;
-		g_material.Ni = g_loader->GetMaterialAt(0).Ni;
-		g_material.Ns = g_loader->GetMaterialAt(0).Ns;
+		g_material.Ka = D3DXVECTOR4(g_loader->GetMaterialAt(i).Ka,1);
+		g_material.Kd = D3DXVECTOR4(g_loader->GetMaterialAt(i).Kd,1);
+		g_material.Ks = D3DXVECTOR4(g_loader->GetMaterialAt(i).Ks,1);
+		g_material.Ni = g_loader->GetMaterialAt(i).Ni;
+		g_material.Ns = g_loader->GetMaterialAt(i).Ns;
 		g_materialList.push_back(g_material);
 	}
 
-	g_cData.nrIndices = g_loader->getVertices().size();
+	g_cData.nrVertices = g_loader->getVertices().size();
 	D3DXMatrixScaling(&g_cData.scale, 1.0f,1.0f,1.0f);
 	g_DeviceContext->UpdateSubresource(g_cBuffer->getBufferPointer(), 0, NULL, &g_cData, 0, 0);
 

@@ -21,7 +21,7 @@ struct cData
 	float		fovX;
 	float		fovY;
 	bool		firstPass;
-	int			nrIndices;
+	int			nrVertices;
 };
 
 struct Ray
@@ -81,9 +81,9 @@ struct OBJVertex
 
 struct OBJMaterial
 {
-	float3 Kd;
-	float3 Ka;
-	float3 Ks;
+	float4 Kd;
+	float4 Ka;
+	float4 Ks;
 	float Ni;
 	float Ns;
 };
