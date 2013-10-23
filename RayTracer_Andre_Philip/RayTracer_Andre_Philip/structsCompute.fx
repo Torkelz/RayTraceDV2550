@@ -7,7 +7,7 @@
 #define noDGroupsX 25
 #define noDGroupsY 25
 #define noDGroupsZ 1
-#define BOUNCES 1
+#define BOUNCES 0
 
 struct cData
 {

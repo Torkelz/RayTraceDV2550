@@ -24,7 +24,7 @@ RWStructuredBuffer<float4> accOutput : register(u1);
 void main( uint3 ThreadID : SV_DispatchThreadID )
 {
 	int index = ThreadID.x+(ThreadID.y*cd.screenWidth);
-	int increasingID = 0;
+	//int increasingID = 0;
 
 	HitData h = InputHitdata[index];
 	Sphere s;
@@ -53,15 +53,15 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 		float deltaRange = 0.001f;
 		float returnT = 0.0f;
 		float4 returnT4 = float4(0,0,0,0);
-		float hubba = 0;//   ## THE BEST VARIABLE IN THE WORLD!!!!!!
+		//float hubba = 0;//   ## THE BEST VARIABLE IN THE WORLD!!!!!!
 		//[unroll] //IF FPS PROBLEM REMOVE THIS
 		//float angle = 0.0f;
 		int numV = cd.nrVertices;
 		float4x4 scale = cd.scale;
 		float lightDistance;
-		for(int i = 0; i < 10;i++)
+		for(int i = 0; i < 1;i++)
 		{
-			increasingID = 0;
+			int increasingID = 0;
 			//NULLIFY
 			t = float4(0, 0, 0, 0);			
 			shadowh= -1.f;
@@ -76,8 +76,10 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 				{
 					shadowh = returnT;
 				}
-				increasingID++;
 			}
+			increasingID++;
+			
+
 			for(int j = 0; j < 36; j+=3)
 			{
 				//if(h.id != Triangles[j].id)
@@ -92,37 +94,37 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 				}
 				increasingID++;
 			}
-			//for(int j = 0; j < numV; j+=3)
-			//{
-			//	//if(h.id != Triangles[i].id)
-			//	if( h.id != increasingID)
-			//	{
-			//		returnT4 = RayTriangleIntersection(L,mul(float4(OBJ[j].position,1), scale).xyz, mul(float4(OBJ[j+1].position,1), scale).xyz, mul(float4(OBJ[j+2].position,1), scale).xyz);
-			//		returnT = returnT4.x;
+			for(int j = 0; j < numV; j+=3)
+			{
+				//if(h.id != Triangles[i].id)
+				if( h.id != increasingID)
+				{
+					returnT4 = RayTriangleIntersection(L,mul(float4(OBJ[j].position,1), scale).xyz, mul(float4(OBJ[j+1].position,1), scale).xyz, mul(float4(OBJ[j+2].position,1), scale).xyz);
+					returnT = returnT4.x;
 
-			//		if(returnT < shadowh && returnT > deltaRange || shadowh < 0.0f && returnT > deltaRange)
-			//		{
-			//			shadowh = returnT;
-			//			j = numV;
-			//		}
-			//	}
-			//	increasingID++;
-			//}
+					if(returnT < shadowh && returnT > deltaRange || shadowh < 0.0f && returnT > deltaRange)
+					{
+						shadowh = returnT;
+						j = numV;
+					}
+				}
+				increasingID++;
+			}
 			
 			if(shadowh > deltaRange && shadowh < lightDistance)
 			{
 				t += 0.0f * float4(LightSourceCalc(L, h, pl[i], h.materialID),0.f);
-				hubba += 0.5;
+				//hubba += 0.5;
 			}
 			else
 			{
 				t += 1.0f * float4(LightSourceCalc(L, h, pl[i], h.materialID),0.f);
-				hubba += 1.0f;
+				//hubba += 1.0f;
 			}
 			
 			color += (h.color ) * t;//* float4(0.1f,0.1f,0.1f,1)
 		}
-		color /= hubba;
+		//color /= hubba;
 		accOutput[index] += color * h.r.power;
 		
 		output[ThreadID.xy] = saturate(accOutput[index]);
