@@ -53,13 +53,13 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 		float deltaRange = 0.001f;
 		float returnT = 0.0f;
 		float4 returnT4 = float4(0,0,0,0);
-		//float hubba = 0;   ## THE BEST VARIABLE IN THE WORLD!!!!!!
+		float hubba = 0;//   ## THE BEST VARIABLE IN THE WORLD!!!!!!
 		//[unroll] //IF FPS PROBLEM REMOVE THIS
 		//float angle = 0.0f;
 		int numV = cd.nrVertices;
 		float4x4 scale = cd.scale;
 		float lightDistance;
-		for(int i = 0; i < 1;i++)
+		for(int i = 0; i < 10;i++)
 		{
 			increasingID = 0;
 			//NULLIFY
@@ -92,39 +92,41 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 				}
 				increasingID++;
 			}
-			for(int j = 0; j < numV; j+=3)
-			{
-				//if(h.id != Triangles[i].id)
-				if( h.id != increasingID)
-				{
-					returnT4 = RayTriangleIntersection(L,mul(float4(OBJ[j].position,1), scale).xyz, mul(float4(OBJ[j+1].position,1), scale).xyz, mul(float4(OBJ[j+2].position,1), scale).xyz);
-					returnT = returnT4.x;
+			//for(int j = 0; j < numV; j+=3)
+			//{
+			//	//if(h.id != Triangles[i].id)
+			//	if( h.id != increasingID)
+			//	{
+			//		returnT4 = RayTriangleIntersection(L,mul(float4(OBJ[j].position,1), scale).xyz, mul(float4(OBJ[j+1].position,1), scale).xyz, mul(float4(OBJ[j+2].position,1), scale).xyz);
+			//		returnT = returnT4.x;
 
-					if(returnT < shadowh && returnT > deltaRange || shadowh < 0.0f && returnT > deltaRange)
-					{
-						shadowh = returnT;
-						j = numV;
-					}
-				}
-				increasingID++;
-			}
+			//		if(returnT < shadowh && returnT > deltaRange || shadowh < 0.0f && returnT > deltaRange)
+			//		{
+			//			shadowh = returnT;
+			//			j = numV;
+			//		}
+			//	}
+			//	increasingID++;
+			//}
 			
 			if(shadowh > deltaRange && shadowh < lightDistance)
 			{
 				t += 0.0f * float4(LightSourceCalc(L, h, pl[i], h.materialID),0.f);
-				//hubba += 1;
+				hubba += 0.5;
 			}
 			else
 			{
 				t += 1.0f * float4(LightSourceCalc(L, h, pl[i], h.materialID),0.f);
-				//hubba += 2.0f;
+				hubba += 1.0f;
 			}
 			
 			color += (h.color ) * t;//* float4(0.1f,0.1f,0.1f,1)
 		}
-		//color /= hubba;
+		color /= hubba;
 		accOutput[index] += color * h.r.power;
-		output[ThreadID.xy] = accOutput[index];
+		
+		output[ThreadID.xy] = saturate(accOutput[index]);
+		//output[ThreadID.xy] = accOutput[index];
 	}
 }
 
@@ -151,7 +153,7 @@ float3 LightSourceCalc(Ray r, HitData hd, PointLight L, int materialID)
 			diffuse  *= material[materialID].Kd.xyz;
 			ambient	 *= material[materialID].Ka.xyz;
 			specular *= material[materialID].Ks.xyz;
-			shininess = material[materialID].Ns.x;
+			//shininess = material[materialID].Ns.x;
 		}
 
         //the distance deom surface to light

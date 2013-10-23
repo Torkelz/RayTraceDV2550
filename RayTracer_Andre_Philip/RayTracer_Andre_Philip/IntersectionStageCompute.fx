@@ -90,28 +90,28 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 	float4x4 scale = cd.scale;
 	float2 uvCoord ;
 			
-	for(int i = 0; i < numV; i+=3)
-	{
-		//if(h.id != Triangles[i].id)
-		if( h.id != increasingID)
-		{
-			returnT4 = RayTriangleIntersection(r,mul(float4(OBJ[i].position,1), scale).xyz, mul(float4(OBJ[i+1].position,1), scale).xyz, mul(float4(OBJ[i+2].position,1), scale).xyz);
-			returnT = returnT4.x;
+	//for(int i = 0; i < numV; i+=3)
+	//{
+	//	//if(h.id != Triangles[i].id)
+	//	if( h.id != increasingID)
+	//	{
+	//		returnT4 = RayTriangleIntersection(r,mul(float4(OBJ[i].position,1), scale).xyz, mul(float4(OBJ[i+1].position,1), scale).xyz, mul(float4(OBJ[i+2].position,1), scale).xyz);
+	//		returnT = returnT4.x;
 
-			if(returnT < h.distance && returnT > deltaRange || h.distance < 0.0f && returnT > deltaRange)
-			{
-				h.distance = returnT;
-				uvCoord = returnT4.w*OBJ[i].texCoord + returnT4.y*OBJ[i+1].texCoord +returnT4.z * OBJ[i+2].texCoord;
-				uvCoord *= 512;
-				h.materialID = OBJ[i].materialID;
-				h.color = objtexture[uvCoord];
-				tempID = increasingID;
-				h.reflection = 0.0f;//Triangles[i].reflection;
-				h.normal = OBJ[i].normal;//normalize(cross(Triangles[i+1].position-Triangles[i].position,Triangles[i+2].position-Triangles[i].position));
-			}
-		}
-		increasingID++;
-	}
+	//		if(returnT < h.distance && returnT > deltaRange || h.distance < 0.0f && returnT > deltaRange)
+	//		{
+	//			h.distance = returnT;
+	//			uvCoord = returnT4.w*OBJ[i].texCoord + returnT4.y*OBJ[i+1].texCoord +returnT4.z * OBJ[i+2].texCoord;
+	//			uvCoord *= 512;
+	//			h.materialID = OBJ[i].materialID;
+	//			h.color = objtexture[uvCoord];
+	//			tempID = increasingID;
+	//			h.reflection = 0.0f;//Triangles[i].reflection;
+	//			h.normal = OBJ[i].normal;//normalize(cross(Triangles[i+1].position-Triangles[i].position,Triangles[i+2].position-Triangles[i].position));
+	//		}
+	//	}
+	//	increasingID++;
+	//}
 
 
 	if(tempID != -1)
@@ -125,7 +125,7 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 	{
 		r.origin = r.origin + r.direction * h.distance;
 		r.direction = reflect(r.direction, h.normal);
-		if(r.power != 0.0f)
+		//if(r.power != 0.0f)
 			r.power = h.reflection;
 		//r.id = h.id;
 		IO_Rays[index] = r;

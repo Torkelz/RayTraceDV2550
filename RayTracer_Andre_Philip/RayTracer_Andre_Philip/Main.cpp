@@ -185,7 +185,7 @@ HRESULT Init()
 
 	//BEGIN OF OWN CODE
 
-	g_camera = new Camera(D3DXVECTOR3(0,0,-100));
+	g_camera = new Camera(D3DXVECTOR3(0,0,-35));
 	g_camera->createProjectionMatrix(0.4f*PI, (float)g_Width/g_Height, 1.0f, 1000.0f);
 	g_camera->setViewMatrix(g_camera->getPosition());
 	g_mouseInput = new MouseInput(g_hWnd, g_camera, g_Width, g_Height);
