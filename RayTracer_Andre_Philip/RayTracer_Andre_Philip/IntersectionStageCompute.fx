@@ -91,7 +91,7 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 	float4x4 scale = cd.scale;
 	float2 uvCoord ;
 			
-	for(int i = 0; i < numV; i+=3)
+	for(i = 0; i < numV; i+=3)
 	{
 		//if(h.id != Triangles[i].id)
 		if( h.id != increasingID)
@@ -126,7 +126,7 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 	{
 		r.origin = r.origin + r.direction * h.distance;
 		r.direction = reflect(r.direction, h.normal);
-		//if(r.power != 0.0f)
+		if(r.power != 0.0f)
 			r.power = h.reflection;
 		//r.id = h.id;
 		IO_Rays[index] = r;

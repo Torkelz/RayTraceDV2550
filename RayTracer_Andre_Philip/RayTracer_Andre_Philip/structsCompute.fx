@@ -1,13 +1,31 @@
 #ifndef STRUCTSCOMPUTE
 #define STRUCTSCOMPUTE
 
-#define noThreadsX 32
-#define noThreadsY 32
+#define noThreadsX 4
+#define noThreadsY 4
 #define noThreadsZ 1
-#define noDGroupsX 25
-#define noDGroupsY 25
+#define noDGroupsX 100
+#define noDGroupsY 100
 #define noDGroupsZ 1
+#define	TEST		4
+
+#if  TEST == 0
 #define BOUNCES 0
+#define LIGHTS  1
+#elif	TEST == 1
+#define BOUNCES 10
+#define LIGHTS  10
+#elif	TEST == 2
+#define BOUNCES 10
+#define LIGHTS  1
+#elif	TEST == 3
+#define BOUNCES 0
+#define LIGHTS  10
+#elif	TEST == 4
+#define BOUNCES 5
+#define LIGHTS  5
+#endif
+
 
 struct cData
 {
@@ -83,9 +101,8 @@ struct OBJMaterial
 {
 	float4 Kd;
 	float4 Ka;
-	float4 Ks;
-	float4 Ns;
-	float Ni;	
+	float4 Ks; //Shininess is the fourth value a.k.a w
+	float Ni;
 };
 
 #endif // STRUCTSCOMPUTE

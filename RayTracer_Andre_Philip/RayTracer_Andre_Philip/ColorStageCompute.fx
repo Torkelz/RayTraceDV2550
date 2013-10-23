@@ -59,9 +59,10 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 		int numV = cd.nrVertices;
 		float4x4 scale = cd.scale;
 		float lightDistance;
-		for(int i = 0; i < 1;i++)
+		int increasingID = 0;
+		for(int i = 0; i < LIGHTS;i++)
 		{
-			int increasingID = 0;
+			increasingID = 0;
 			//NULLIFY
 			t = float4(0, 0, 0, 0);			
 			shadowh= -1.f;
@@ -94,7 +95,7 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 				}
 				increasingID++;
 			}
-			for(int j = 0; j < numV; j+=3)
+			for(j = 0; j < numV; j+=3)
 			{
 				//if(h.id != Triangles[i].id)
 				if( h.id != increasingID)
@@ -135,29 +136,24 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 float3 LightSourceCalc(Ray r, HitData hd, PointLight L, int materialID)
 {
 		
-        float3 litColor = float3(0.0f, 0.0f, 0.0f);
+        float3 litColor = 0;
         //The vector from surface to the light
         float3 lightVec = L.position.xyz - r.origin;
         float lightintensity;
         float3 lightDir;
         float3 reflection;
-        float3 specular;
-		float3 ambient;
-		float3 diffuse;
-		float shininess;
-		diffuse = L.diffuse.xyz;
-		ambient = L.ambient.xyz;
-		specular = float3(1.0f, 1.0f, 1.0f);
-		shininess = 32;
+        float3 specular = 1;
+		float3 ambient = L.ambient.xyz;
+		float3 diffuse = L.diffuse.xyz;
+		float shininess = 32;
 
 		if(materialID != -1)
 		{
 			diffuse  *= material[materialID].Kd.xyz;
 			ambient	 *= material[materialID].Ka.xyz;
 			specular *= material[materialID].Ks.xyz;
-			//shininess = material[materialID].Ns.x;
+			shininess = material[materialID].Ks.w;
 		}
-
         //the distance deom surface to light
         float d = length(lightVec);
         float fade;
