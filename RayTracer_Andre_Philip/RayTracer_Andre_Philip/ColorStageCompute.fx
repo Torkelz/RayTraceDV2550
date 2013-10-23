@@ -55,17 +55,18 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 		float4 returnT4 = float4(0,0,0,0);
 		//float hubba = 0;   ## THE BEST VARIABLE IN THE WORLD!!!!!!
 		//[unroll] //IF FPS PROBLEM REMOVE THIS
-		float angle = 0.0f;
+		//float angle = 0.0f;
 		int numV = cd.nrVertices;
 		float4x4 scale = cd.scale;
-		for(int i = 0; i < 3;i++)
+		float lightDistance;
+		for(int i = 0; i < 1;i++)
 		{
 			increasingID = 0;
 			//NULLIFY
 			t = float4(0, 0, 0, 0);			
 			shadowh= -1.f;
 			//RECALCULATE
-			float lightDistance = length(pl[i].position.xyz - L.origin);
+			lightDistance = length(pl[i].position.xyz - L.origin);
 			L.direction = normalize(pl[i].position.xyz - L.origin);
 			//if(h.id != s.id)
 			if(h.id != increasingID)
@@ -143,14 +144,14 @@ float3 LightSourceCalc(Ray r, HitData hd, PointLight L, int materialID)
 		diffuse = L.diffuse.xyz;
 		ambient = L.ambient.xyz;
 		specular = float3(1.0f, 1.0f, 1.0f);
-		shininess = 2;
+		shininess = 32;
 
 		if(materialID != -1)
 		{
 			diffuse  *= material[materialID].Kd.xyz;
 			ambient	 *= material[materialID].Ka.xyz;
 			specular *= material[materialID].Ks.xyz;
-			//shininess *= material[materialID].Ns;
+			shininess = material[materialID].Ns.x;
 		}
 
         //the distance deom surface to light
@@ -173,7 +174,11 @@ float3 LightSourceCalc(Ray r, HitData hd, PointLight L, int materialID)
             
             float3 viewDir = normalize(r.origin - cd.camPos);
             float3 ref = reflect(-lightDir, normalize(hd.normal));
-            float specFac = pow(max(dot(ref, viewDir), 0.0f), shininess);
+            //float specFac = pow(max(dot(ref, viewDir), 0.0f), shininess);
+			float scalar = max(dot(ref, viewDir), 0.0f);
+			float specFac = 1.0f;
+			for(int i = 0; i < shininess;i++)
+				specFac *= scalar;
             litColor += specular.xyz * specFac;
         }
         litColor = litColor * hd.color.xyz;

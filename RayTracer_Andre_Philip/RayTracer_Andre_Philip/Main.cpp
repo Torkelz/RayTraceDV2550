@@ -231,7 +231,7 @@ HRESULT Init()
 		g_material.Kd = D3DXVECTOR4(g_loader->GetMaterialAt(i).Kd,1);
 		g_material.Ks = D3DXVECTOR4(g_loader->GetMaterialAt(i).Ks,1);
 		g_material.Ni = g_loader->GetMaterialAt(i).Ni;
-		g_material.Ns = g_loader->GetMaterialAt(i).Ns;
+		g_material.Ns = D3DXVECTOR4(g_loader->GetMaterialAt(i).Ns,0,0,1);
 		g_materialList.push_back(g_material);
 	}
 

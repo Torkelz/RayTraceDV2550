@@ -84,8 +84,8 @@ struct OBJMaterial
 	float4 Kd;
 	float4 Ka;
 	float4 Ks;
-	float Ni;
-	float Ns;
+	float4 Ns;
+	float Ni;	
 };
 
 #endif // STRUCTSCOMPUTE

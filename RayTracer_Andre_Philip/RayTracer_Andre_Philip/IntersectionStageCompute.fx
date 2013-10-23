@@ -50,6 +50,7 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 	int tempID = -1;
 
 	//if(h.id != s.id)
+	
 	if( h.id != increasingID)
 	{
 		returnT = RaySphereIntersect(r, s);
@@ -88,11 +89,12 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 	int numV = cd.nrVertices;
 	float4x4 scale = cd.scale;
 	float2 uvCoord ;
+			
 	for(int i = 0; i < numV; i+=3)
 	{
 		//if(h.id != Triangles[i].id)
-		//if( h.id != increasingID)
-		//{
+		if( h.id != increasingID)
+		{
 			returnT4 = RayTriangleIntersection(r,mul(float4(OBJ[i].position,1), scale).xyz, mul(float4(OBJ[i+1].position,1), scale).xyz, mul(float4(OBJ[i+2].position,1), scale).xyz);
 			returnT = returnT4.x;
 
@@ -107,15 +109,14 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 				h.reflection = 0.0f;//Triangles[i].reflection;
 				h.normal = OBJ[i].normal;//normalize(cross(Triangles[i+1].position-Triangles[i].position,Triangles[i+2].position-Triangles[i].position));
 			}
-		//}
+		}
 		increasingID++;
 	}
 
 
-
 	if(tempID != -1)
 		h.id = tempID;
-	
+
 	//h.color = float4(1,0,0,1);
 
 	OutputHitdata[index] = h;
@@ -123,10 +124,12 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 	if(h.id != -1)
 	{
 		r.origin = r.origin + r.direction * h.distance;
-		r.direction = reflect(r.direction, h.normal);	
-		r.power = h.reflection;
+		r.direction = reflect(r.direction, h.normal);
+		if(r.power != 0.0f)
+			r.power = h.reflection;
 		//r.id = h.id;
 		IO_Rays[index] = r;
-	}
+	} 
+	
 }
 #endif // PRIMARYRAYCOMPUTE
