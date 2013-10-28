@@ -8,8 +8,6 @@ typedef D3DXMATRIX float4x4;
 
 #include "structsCompute.fx"
 
-
-
 inline PointLight CreatePointLight(D3DXVECTOR4 _position,	D3DXVECTOR4 _color, D3DXVECTOR4 _diffuse, D3DXVECTOR4 _ambient, D3DXVECTOR4 _specular, D3DXVECTOR4 _att, float _range)
 {
 	PointLight pl;
@@ -32,6 +30,16 @@ inline Vertex CreateVertex(D3DXVECTOR3 _position, D3DXVECTOR4 _color, int _id, f
 	v.color = _color;
 	v.id = _id;
 	v.reflection = _reflection;
+	return v;
+}
+inline OBJVertex CreateOBJVertex(D3DXVECTOR3 _position, D3DXVECTOR3 _normal, int _materialid, D3DXVECTOR2 _texcoord )
+{
+	OBJVertex v;
+
+	v.position = _position;
+	v.normal = _normal;
+	v.materialID = _materialid;
+	v.texCoord = _texcoord;
 	return v;
 }
 

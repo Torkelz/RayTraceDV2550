@@ -39,6 +39,9 @@
     <ClCompile Include="OBJLoader.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
+    <ClCompile Include="OctTree.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="ComputeHelp.h">
@@ -68,10 +71,12 @@
     <ClInclude Include="d3dUtil.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="OctTree.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="IntersectionCompute.fx" />
-    <FxCompile Include="structsCompute.fx" />
     <FxCompile Include="PrimaryRayCompute.fx" />
     <FxCompile Include="IntersectionStageCompute.fx" />
     <FxCompile Include="ColorStageCompute.fx" />
@@ -81,5 +86,6 @@
     <FxCompile Include="BasicCompute.fx">
       <Filter>Not used</Filter>
     </FxCompile>
+    <FxCompile Include="structsCompute.fx" />
   </ItemGroup>
 </Project>

@@ -14,8 +14,20 @@
 #include "D3D11Timer.h"
 #include "Main.h"
 #include "OBJLoader.h"
-
-
+#include "OctTree.h"
+struct TestSenario
+{
+	D3D10_SHADER_MACRO*  pDefines;
+	int					numDgroups;
+	int					numLights;
+	int					numBounces;
+};
+struct MainTest
+{
+	vector<TestSenario> tests;
+	int					wWidth;
+	int					wHeight;
+};
 //--------------------------------------------------------------------------------------
 // Global Variables
 //--------------------------------------------------------------------------------------
@@ -58,18 +70,25 @@ cData						g_cData;
 float						g_cameraSpeed			= 50.f;
 int							g_lightSpeed			= 10;
 int							g_nrLights				= 10;
+int							g_Dgroups;
+OctTree						g_octTree;
 
 int g_Width, g_Height;
 
 //--------------------------------------------------------------------------------------
 // Forward declarations
-//--------------------------------------------------------------------------------------
-HRESULT             InitWindow( HINSTANCE hInstance, int nCmdShow );
+//------------------------------------------------------------------------------------
+
+HRESULT             InitWindow( HINSTANCE hInstance, int nCmdShow, int pWidth, int pHeight );
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
 HRESULT				Render(float deltaTime);
 HRESULT				Update(float deltaTime);
 Vertex*				CreateBox(int size, D3DXVECTOR3 center);
+OBJVertex*			CreateOBJBox(int size, D3DXVECTOR3 center);
 void				UpdateMovement(float p_dt);
+void				InitTest();
+void				Destroy();
+
 
 char* FeatureLevelToString(D3D_FEATURE_LEVEL featureLevel)
 {
@@ -238,12 +257,16 @@ HRESULT Init()
 	D3DXMatrixScaling(&g_cData.scale, 1.0f,1.0f,1.0f);
 	g_DeviceContext->UpdateSubresource(g_cBuffer->getBufferPointer(), 0, NULL, &g_cData, 0, 0);
 
+	//#undef noThreadsX
+	//#define noThreadsX 4
+	D3D10_SHADER_MACRO Shader_Macros[2] = { "noThreads", "4", NULL, NULL  };
+	g_Dgroups = 100;
 	//Primary rays
-	g_CS_ComputeRay = g_ComputeSys->CreateComputeShader(_T("PrimaryRayCompute.fx"), NULL, "main", NULL);
+	g_CS_ComputeRay = g_ComputeSys->CreateComputeShader(_T("PrimaryRayCompute.fx"), NULL, "main", Shader_Macros);
 	g_rayBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(Ray),g_Height*g_Width, true, true, NULL,true, "Structured Buffer:Rays");
 
 	//IntersectionStage
-	g_CS_IntersectionStage = g_ComputeSys->CreateComputeShader(_T("IntersectionStageCOmpute.fx"), NULL, "main", NULL);
+	g_CS_IntersectionStage = g_ComputeSys->CreateComputeShader(_T("IntersectionStageCOmpute.fx"), NULL, "main", Shader_Macros);
 	
 	g_ObjectBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(Vertex),36, true, false, box,false, "Structured Buffer:BOXVertex");
 	g_OBJBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(OBJVertex),g_loader->getVertices().size(), true, false, g_loader->getVertices().data(),false, "Structured Buffer:OBJVertex");
@@ -254,11 +277,20 @@ HRESULT Init()
 	D3DX11CreateShaderResourceViewFromFile(g_Device, g_loader->GetMaterialAt(0).map_Kd,NULL,NULL,&g_objTexture, &hr);
 
 	//ColorStage
-	g_CS_ColorStage = g_ComputeSys->CreateComputeShader(_T("ColorStageCompute.fx"), NULL, "main", NULL);
+	g_CS_ColorStage = g_ComputeSys->CreateComputeShader(_T("ColorStageCompute.fx"), NULL, "main", Shader_Macros);
 	g_lightBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(PointLight),sizeof(g_lights)/sizeof(PointLight), true, false, &g_lights,true, "Structured Buffer:Light");
 	g_accColorBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(D3DXVECTOR4),g_Height*g_Width, true, true, NULL,true, "Structured Buffer:accColor");
 	g_materialBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(OBJMaterial),g_materialList.size(), true, false, g_materialList.data(),false, "Structured Buffer:OBJMaterail");
 	
+	D3D11_TEXTURE3D_DESC texturedesc;
+	texturedesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+	texturedesc.CPUAccessFlags = 0;
+	texturedesc.Depth = 10;
+	//texturedesc.Format = 
+
+	g_octTree.CreateTree(CreateOBJBox(40,D3DXVECTOR3(0,0,0)),30);
+	//g_Device->CreateTexture3D();
+
 	return S_OK;
 }
 
@@ -332,7 +364,7 @@ HRESULT Render(float deltaTime)
 
 	g_CS_ComputeRay->Set();
 	g_Timer->Start();
-	g_DeviceContext->Dispatch( noDGroupsX, noDGroupsY, noDGroupsZ );
+	g_DeviceContext->Dispatch( g_Dgroups, g_Dgroups, 1 );
 	g_Timer->Stop();
 	g_CS_ComputeRay->Unset();
 	////Clear used resources
@@ -348,7 +380,7 @@ HRESULT Render(float deltaTime)
 
 		g_CS_IntersectionStage->Set();
 		g_Timer->Start();
-		g_DeviceContext->Dispatch( noDGroupsX, noDGroupsY, noDGroupsZ );
+		g_DeviceContext->Dispatch( g_Dgroups, g_Dgroups, 1 );
 		g_Timer->Stop();
 		g_CS_IntersectionStage->Unset();
 		//Clear used resources
@@ -368,7 +400,7 @@ HRESULT Render(float deltaTime)
 
 		g_CS_ColorStage->Set();
 		g_Timer->Start();
-		g_DeviceContext->Dispatch( noDGroupsX, noDGroupsY, noDGroupsZ );
+		g_DeviceContext->Dispatch( g_Dgroups, g_Dgroups, 1 );
 		g_Timer->Stop();
 		g_CS_ColorStage->Unset();
 		//Clear used resources
@@ -436,50 +468,58 @@ void UpdateMovement(float p_dt)
 //--------------------------------------------------------------------------------------
 int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow )
 {
-	if( FAILED( InitWindow( hInstance, nCmdShow ) ) )
-		return 0;
-
-	if( FAILED( Init() ) )
-		return 0;
-
-	__int64 cntsPerSec = 0;
-	QueryPerformanceFrequency((LARGE_INTEGER*)&cntsPerSec);
-	float secsPerCnt = 1.0f / (float)cntsPerSec;
-
-	__int64 prevTimeStamp = 0;
-	QueryPerformanceCounter((LARGE_INTEGER*)&prevTimeStamp);
-
-	// Main message loop
-	MSG msg = {0};
-	while(WM_QUIT != msg.message)
+	MSG msgOrig = {0};
+	WPARAM wparam;
+	for(int i = 800; i > 200; i /= 2)
 	{
-		if( PeekMessage( &msg, NULL, 0, 0, PM_REMOVE) )
-		{
-			TranslateMessage( &msg );
-			DispatchMessage( &msg );
-		}
-		else
-		{
-			__int64 currTimeStamp = 0;
-			QueryPerformanceCounter((LARGE_INTEGER*)&currTimeStamp);
-			float dt = (currTimeStamp - prevTimeStamp) * secsPerCnt;
+		if( FAILED( InitWindow( hInstance, nCmdShow,i,i ) ) )
+			return 0;
 
-			//render
-			Update(dt);
-			Render(dt);
+		if( FAILED( Init() ) )
+			return 0;
 
-			prevTimeStamp = currTimeStamp;
+		__int64 cntsPerSec = 0;
+		QueryPerformanceFrequency((LARGE_INTEGER*)&cntsPerSec);
+		float secsPerCnt = 1.0f / (float)cntsPerSec;
+
+		__int64 prevTimeStamp = 0;
+		QueryPerformanceCounter((LARGE_INTEGER*)&prevTimeStamp);
+	
+		// Main message loop
+		MSG msg = msgOrig;
+		float lifeTime = 0;
+		while(WM_QUIT != msg.message && lifeTime < 10.0f)
+		{
+			if( PeekMessage( &msg, NULL, 0, 0, PM_REMOVE) )
+			{
+				TranslateMessage( &msg );
+				DispatchMessage( &msg );
+			}
+			else
+			{
+				__int64 currTimeStamp = 0;
+				QueryPerformanceCounter((LARGE_INTEGER*)&currTimeStamp);
+				float dt = (currTimeStamp - prevTimeStamp) * secsPerCnt;
+
+				//render
+				Update(dt);
+				Render(dt);
+				lifeTime += dt;
+				prevTimeStamp = currTimeStamp;
+			}
 		}
+		wparam = msg.wParam;
+		Destroy();
+		
+		DestroyWindow(g_hWnd);
 	}
-
-	return (int) msg.wParam;
+	return (int) wparam;
 }
-
 
 //--------------------------------------------------------------------------------------
 // Register class and create window
 //--------------------------------------------------------------------------------------
-HRESULT InitWindow( HINSTANCE hInstance, int nCmdShow )
+HRESULT InitWindow( HINSTANCE hInstance, int nCmdShow, int pWidth, int pheight )
 {
 	// Register class
 	WNDCLASSEX wcex;
@@ -500,7 +540,9 @@ HRESULT InitWindow( HINSTANCE hInstance, int nCmdShow )
 
 	// Create window
 	g_hInst = hInstance; 
-	RECT rc = { 0, 0, 400, 400 };
+	g_Width = pWidth;
+	g_Height = pheight;
+	RECT rc = { 0, 0, g_Width, g_Height };
 	AdjustWindowRect( &rc, WS_OVERLAPPEDWINDOW, FALSE );
 	
 	if(!(g_hWnd = CreateWindow(
@@ -590,6 +632,45 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
 	return 0;
 }
 
+void Destroy()
+{
+	g_SwapChain->Release();
+	g_Device->Release();
+	g_DeviceContext->Release();
+
+	g_BackBufferUAV->Release();  // compute output
+
+	g_ComputeSys			= NULL;
+	g_CS_ComputeRay			= NULL;
+	g_CS_IntersectionStage	= NULL;
+	g_CS_ColorStage			= NULL;
+
+	g_ObjectBuffer->Release();
+	g_OBJBuffer->Release();
+	g_indexBuffer->Release();
+	g_lightBuffer->Release();
+	g_rayBuffer->Release();
+	g_hitDataBuffer->Release();
+	g_accColorBuffer->Release();
+	g_materialBuffer->Release();
+
+	g_lightBuffer->Release();
+	g_rayBuffer->Release();
+	g_hitDataBuffer->Release();
+	g_accColorBuffer->Release();
+	g_materialBuffer->Release();
+
+	g_Timer					= NULL;
+	
+	g_camera				= NULL;
+	g_mouseInput			= NULL;
+	g_cBuffer				= NULL;
+	g_loader				= NULL;
+	g_materialList.clear();
+
+	g_objTexture->Release();
+}
+
 Vertex* CreateBox(int size, D3DXVECTOR3 center)
 {
 	Vertex* box = new Vertex[36];
@@ -651,6 +732,83 @@ Vertex* CreateBox(int size, D3DXVECTOR3 center)
 	box[33] = CreateVertex(vert2, color, 12, 0.2f);
 	box[34] = CreateVertex(vert6, color, 12, 0.2f);
 	box[35] = CreateVertex(vert4, color, 12, 0.2f);
+
+
+	return box;
+}
+
+OBJVertex* CreateOBJBox(int size, D3DXVECTOR3 center)
+{
+	OBJVertex* box = new OBJVertex[30];
+	D3DXVECTOR3 normal;
+	D3DXVECTOR2 texCoord = D3DXVECTOR2(1,0);
+	D3DXVECTOR3 vert0 = center + D3DXVECTOR3(-1.0f*size, -1.0f*size, -1.0f*size); // 0 --- LowerLeftFront
+	D3DXVECTOR3 vert1 = center + D3DXVECTOR3( 1.0f*size, -1.0f*size, -1.0f*size); // 1 +-- LowerRightFront
+	D3DXVECTOR3 vert2 = center + D3DXVECTOR3(-1.0f*size,  1.0f*size, -1.0f*size); // 2 -+- UpperLeftFront
+	D3DXVECTOR3 vert3 = center + D3DXVECTOR3( 1.0f*size,  1.0f*size, -1.0f*size); // 3 ++- UpperRightFront
+	D3DXVECTOR3 vert4 = center + D3DXVECTOR3(-1.0f*size, -1.0f*size,  1.0f*size); // 4 --+ LowerLeftBack
+	D3DXVECTOR3 vert5 = center + D3DXVECTOR3( 1.0f*size, -1.0f*size,  1.0f*size); // 5 +-+ LowerRightBack
+	D3DXVECTOR3 vert6 = center + D3DXVECTOR3(-1.0f*size,  1.0f*size,  1.0f*size); // 6 -++ UpperLeftBack
+	D3DXVECTOR3 vert7 = center + D3DXVECTOR3( 1.0f*size,  1.0f*size,  1.0f*size); // 7 +++ UpperRightBack
+												 
+	// Back
+	 //normalize(cross(Triangles[i+1].position-Triangles[i].position,Triangles[i+2].position-Triangles[i].position))
+	D3DXVec3Cross(&normal,&(vert6-vert4),&(vert5-vert4));
+	D3DXVec3Normalize(&normal,&normal);
+	box[0] = CreateOBJVertex(vert4, normal, -1, texCoord);
+	box[1] = CreateOBJVertex(vert6, normal, -1, texCoord);
+	box[2] = CreateOBJVertex(vert5, normal, -1, texCoord);
+	box[3] = CreateOBJVertex(vert6, normal, -1, texCoord);
+	box[4] = CreateOBJVertex(vert7, normal, -1, texCoord);
+	box[5] = CreateOBJVertex(vert5, normal, -1, texCoord);
+
+	// Front
+	/*box[6] = CreateVertex(vert1, color, 3, texCoord);
+	box[7] = CreateVertex(vert3, color, 3, texCoord);
+	box[8] = CreateVertex(vert0, color, 3, texCoord);
+	box[9] = CreateVertex(vert3, color, 4, texCoord);
+	box[10] = CreateVertex(vert2, color, 4, texCoord);
+	box[11] = CreateVertex(vert0, color, 4, texCoord);*/
+
+	// Top
+	D3DXVec3Cross(&normal,&(vert7-vert3),&(vert2-vert3));
+	D3DXVec3Normalize(&normal,&normal);
+	box[6] = CreateOBJVertex(vert3, normal, -1, texCoord);
+	box[7] = CreateOBJVertex(vert7, normal, -1, texCoord);
+	box[8] = CreateOBJVertex(vert2, normal, -1, texCoord);
+	box[9] = CreateOBJVertex(vert7, normal, -1, texCoord);
+	box[10] = CreateOBJVertex(vert6, normal, -1, texCoord);
+	box[11] = CreateOBJVertex(vert2, normal, -1, texCoord);
+
+	// Bottom
+	D3DXVec3Cross(&normal,&(vert4-vert0),&(vert1-vert0));
+	D3DXVec3Normalize(&normal,&normal);
+	box[12] = CreateOBJVertex(vert0, normal, -1, texCoord);
+	box[13] = CreateOBJVertex(vert4, normal, -1, texCoord);
+	box[14] = CreateOBJVertex(vert1, normal, -1, texCoord);
+	box[15] = CreateOBJVertex(vert4, normal, -1, texCoord);
+	box[16] = CreateOBJVertex(vert5, normal, -1, texCoord);
+	box[17] = CreateOBJVertex(vert1, normal, -1, texCoord);
+
+	// Right 
+	D3DXVec3Cross(&normal,&(vert7-vert5),&(vert1-vert4));
+	D3DXVec3Normalize(&normal,&normal);
+	box[18] = CreateOBJVertex(vert5, normal, -1, texCoord);
+	box[19] = CreateOBJVertex(vert7, normal, -1, texCoord);
+	box[20] = CreateOBJVertex(vert1, normal, -1, texCoord);
+	box[21] = CreateOBJVertex(vert7, normal, -1, texCoord);
+	box[22] = CreateOBJVertex(vert3, normal, -1, texCoord);
+	box[23] = CreateOBJVertex(vert1, normal, -1, texCoord);
+
+	// Left
+	D3DXVec3Cross(&normal,&(vert2-vert0),&(vert4-vert0));
+	D3DXVec3Normalize(&normal,&normal);
+	box[24] = CreateOBJVertex(vert0, normal, -1, texCoord);
+	box[25] = CreateOBJVertex(vert2, normal, -1, texCoord);
+	box[26] = CreateOBJVertex(vert4, normal, -1, texCoord);
+	box[27] = CreateOBJVertex(vert2, normal, -1, texCoord);
+	box[28] = CreateOBJVertex(vert6, normal, -1, texCoord);
+	box[29] = CreateOBJVertex(vert4, normal, -1, texCoord);
 
 
 	return box;

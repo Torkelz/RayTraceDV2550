@@ -1,12 +1,12 @@
 #ifndef STRUCTSCOMPUTE
 #define STRUCTSCOMPUTE
 
-#define noThreadsX 4
-#define noThreadsY 4
-#define noThreadsZ 1
-#define noDGroupsX 100
-#define noDGroupsY 100
-#define noDGroupsZ 1
+//#define noThreadsX 1
+//#define noThreadsY 4
+//#define noThreadsZ 1
+//#define noDGroupsX 100
+//#define noDGroupsY 100
+//#define noDGroupsZ 1
 #define	TEST		4
 
 #if  TEST == 0
@@ -40,6 +40,7 @@ struct cData
 	float		fovY;
 	bool		firstPass;
 	int			nrVertices;
+	int			nrLights;
 };
 
 struct Ray

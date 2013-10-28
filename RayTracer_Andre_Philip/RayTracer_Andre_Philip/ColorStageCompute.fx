@@ -20,7 +20,7 @@ StructuredBuffer<OBJMaterial> material : register(t5);
 RWTexture2D<float4> output : register(u0);
 RWStructuredBuffer<float4> accOutput : register(u1);
 
-[numthreads(noThreadsX, noThreadsY, noThreadsZ)]
+[numthreads(noThreads, noThreads, 1)]
 void main( uint3 ThreadID : SV_DispatchThreadID )
 {
 	int index = ThreadID.x+(ThreadID.y*cd.screenWidth);

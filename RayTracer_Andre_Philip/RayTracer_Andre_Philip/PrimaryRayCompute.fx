@@ -10,7 +10,9 @@ cbuffer cBufferdata : register(b0){cData cd;};
 
 RWStructuredBuffer<Ray> outputRay : register(u0);
 
-[numthreads(noThreadsX, noThreadsY, noThreadsZ)]
+
+
+[numthreads(noThreads, noThreads, 1)]
 void main( uint3 ThreadID : SV_DispatchThreadID )
 {
 	outputRay[ThreadID.x + (ThreadID.y*cd.screenWidth)] = CreateRay(ThreadID, cd.screenWidth, cd.screenHeight, cd.camPos, cd.projMatInv, cd.viewMatInv);

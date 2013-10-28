@@ -15,7 +15,7 @@ Texture2D objtexture : register(t3);
 RWStructuredBuffer<Ray> IO_Rays : register(u0);
 RWStructuredBuffer<HitData> OutputHitdata : register(u1);
 
-[numthreads(noThreadsX, noThreadsY, noThreadsZ)]
+[numthreads(noThreads, noThreads, 1)]
 void main( uint3 ThreadID : SV_DispatchThreadID )
 {
 	int index = ThreadID.x+(ThreadID.y*cd.screenWidth);
