@@ -87,5 +87,6 @@
       <Filter>Not used</Filter>
     </FxCompile>
     <FxCompile Include="structsCompute.fx" />
+    <FxCompile Include="FillSLBVH.fx" />
   </ItemGroup>
 </Project>

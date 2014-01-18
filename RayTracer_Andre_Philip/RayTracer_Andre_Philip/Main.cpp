@@ -259,8 +259,8 @@ HRESULT Init()
 
 	//#undef noThreadsX
 	//#define noThreadsX 4
-	D3D10_SHADER_MACRO Shader_Macros[2] = { "noThreads", "4", NULL, NULL  };
-	g_Dgroups = 100;
+	D3D10_SHADER_MACRO Shader_Macros[2] = { "noThreads", "32", NULL, NULL  };
+	g_Dgroups = 25;
 	//Primary rays
 	g_CS_ComputeRay = g_ComputeSys->CreateComputeShader(_T("PrimaryRayCompute.fx"), NULL, "main", Shader_Macros);
 	g_rayBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(Ray),g_Height*g_Width, true, true, NULL,true, "Structured Buffer:Rays");
@@ -288,9 +288,23 @@ HRESULT Init()
 	texturedesc.Depth = 10;
 	//texturedesc.Format = 
 
-	g_octTree.CreateTree(CreateOBJBox(40,D3DXVECTOR3(0,0,0)),30);
+	//g_octTree.CreateTree(CreateOBJBox(40,D3DXVECTOR3(0,0,0)),30);
+	g_octTree.CreateTree(g_loader->getVertices().data(),g_loader->getVertices().size());
 	//g_Device->CreateTexture3D();
 
+	OBJVertex* ddata = CreateOBJBox(40,D3DXVECTOR3(0,0,0));
+
+	D3DXVECTOR3 boundHigh = D3DXVECTOR3(0,0,0);
+	D3DXVECTOR3 boundLow = D3DXVECTOR3(0,0,0);
+
+	for(int i = 0; i < 30;i++)
+	{
+		D3DXVec3Maximize(&boundHigh,&boundHigh,&ddata[i].position);
+		D3DXVec3Minimize(&boundLow,&boundLow,&ddata[i].position);			
+	}
+	g_cData.boundingVMin = boundLow;
+	g_cData.boundingVMax = boundHigh;
+	g_cData.groups = 10; //MUST CHANGE
 	return S_OK;
 }
 
@@ -470,9 +484,9 @@ int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 {
 	MSG msgOrig = {0};
 	WPARAM wparam;
-	for(int i = 800; i > 200; i /= 2)
-	{
-		if( FAILED( InitWindow( hInstance, nCmdShow,i,i ) ) )
+	/*for(int i = 800; i > 200; i /= 2)
+	{*/
+		if( FAILED( InitWindow( hInstance, nCmdShow,800,800 ) ) )
 			return 0;
 
 		if( FAILED( Init() ) )
@@ -512,7 +526,7 @@ int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 		Destroy();
 		
 		DestroyWindow(g_hWnd);
-	}
+	//}
 	return (int) wparam;
 }
 
@@ -561,7 +575,7 @@ HRESULT InitWindow( HINSTANCE hInstance, int nCmdShow, int pWidth, int pheight )
 		return E_FAIL;
 	}
 
-	ShowWindow( g_hWnd, nCmdShow );
+	ShowWindow( g_hWnd, true );
 
 	return S_OK;
 }

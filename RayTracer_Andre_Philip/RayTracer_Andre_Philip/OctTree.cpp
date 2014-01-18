@@ -4,6 +4,7 @@
 OctTree::OctTree(void)
 {
 	root = NULL;
+	maxDepth = 3;
 }
 
 
@@ -21,19 +22,74 @@ void OctTree::CreateTree(OBJVertex* pdata, int numelements)
 		data.push_back(&pdata[i]);
 	root->boundHigh = boundHigh;
 	root->boundLow = boundLow;
-	root->vertices = data;
+	for(int i = 0; i < numelements; i+=3)
+	{
+		root->vertices.push_back(D3DXVECTOR3(i,i+1,i+2));
+	}
 	int d = 0;
-	subdivideTree(root, d);
+	subdivideTree(root, d, pdata);
+	int j = getNrNodes(root);
+	
+
+	cleanEmptyNodes(root);
+	j = getNrNodes(root);
+	OctNode* node = root;
+	for(int i = 0; i < maxDepth; i++)
+		TreeCleanup(node);
+
+	j = getNrNodes(root);
+	int ll = getNrLeafNodes(root);
 	int u = 0;
 }
 
-void OctTree::TreeCleanup()
+void OctTree::TreeCleanup(OctNode* node)
 {
+	for(int i = 0; i < node->nodes.size(); i++)
+	{
+		if ( node->nodes.at(i)->nodes.size() == 1)
+		{
+			node->nodes.at(i) = node->nodes.at(i)->nodes.at(0);
+		}
 
+		TreeCleanup(node->nodes.at(i));
+	}
 }
-void OctTree::subdivideTree(OctNode* node, int depth)
+int OctTree::getNrNodes(OctNode* node)
 {
-	if(node->vertices.size() > 12 && depth < 10)//depth is a failsafe
+	int k = 0;
+	for(int i = 0; i < node->nodes.size(); i++)
+	{
+		k++;
+		k += getNrNodes(node->nodes.at(i));
+	}
+	return k;
+}
+int OctTree::getNrLeafNodes(OctNode* node)
+{
+	int k = 0;
+	for(int i = 0; i < node->nodes.size(); i++)
+	{
+		
+		if(node->nodes.at(i)->nodes.size() == 0)
+			k++;
+		k += getNrLeafNodes(node->nodes.at(i));
+	}
+	return k;
+}
+void OctTree::cleanEmptyNodes(OctNode* node)
+{
+	for(int i = node->nodes.size()-1; i >= 0;i--)
+	{
+		if(node->nodes.at(i)->nodes.size() == 0 && node->nodes.at(i)->vertices.size() == 0)
+			node->nodes.erase(node->nodes.begin()+i);
+		
+	}
+	for(int i = 0; i < node->nodes.size(); i++)
+		cleanEmptyNodes(node->nodes.at(i));
+}
+void OctTree::subdivideTree(OctNode* node, int depth, OBJVertex* pdata)
+{
+	if(node->vertices.size() > 12 && depth < maxDepth)//depth is a failsafe
 	{
 		node->nodes.resize(8);
 		std::vector<Bounds> b = calcSubBounds(node->boundHigh, node->boundLow);
@@ -44,21 +100,27 @@ void OctTree::subdivideTree(OctNode* node, int depth)
 			node->nodes.at(i)->boundLow = b.at(i).boundLow;
 		}
 		D3DXVECTOR3 pos;
+		bool intersect = false;
 		for(int i = 0; i < node->vertices.size();i++)
 		{
-			pos = node->vertices.at(i)->position;
-			for(int j = 0; j < 8; j++)
+			for(int k = 0; k < 3; k++)
 			{
-				if((pos.x >= b.at(j).boundLow.x &&
-					pos.y >= b.at(j).boundLow.y &&
-					pos.z >= b.at(j).boundLow.z) &&
-					(pos.x <= b.at(j).boundHigh.x &&
-					pos.y <= b.at(j).boundHigh.y &&
-					pos.z <= b.at(j).boundHigh.z))
+				//pos = node->vertices.at(i);
+				pos = pdata[getDXVecElement(k,&node->vertices.at(i))].position;
+				for(int j = 0; j < 8; j++)
 				{
-					int temp = i-(i%3);
-					for(int k = 0; k < 3;k++)
-						node->nodes.at(j)->vertices.push_back(node->vertices.at(temp+k));
+					if((pos.x >= b.at(j).boundLow.x &&
+						pos.y >= b.at(j).boundLow.y &&
+						pos.z >= b.at(j).boundLow.z) &&
+						(pos.x <= b.at(j).boundHigh.x &&
+						pos.y <= b.at(j).boundHigh.y &&
+						pos.z <= b.at(j).boundHigh.z))
+					{
+						/*int temp = i-(i%3);
+						for(int k = 0; k < 3;k++)*/
+							//node->nodes.at(j)->vertices.push_back(node->vertices.at(temp+k));
+						node->nodes.at(j)->vertices.push_back(node->vertices.at(i));
+					}
 				}
 			}
 		}
@@ -71,7 +133,7 @@ void OctTree::subdivideTree(OctNode* node, int depth)
 		depth += 1;
 		for(int i = 0; i < node->nodes.size();i++)
 		{
-			subdivideTree(node->nodes.at(i), depth);
+			subdivideTree(node->nodes.at(i), depth, pdata);
 		}
 	}
 }
@@ -129,5 +191,18 @@ void OctTree::findBounds(OBJVertex* pdata, int numElements, D3DXVECTOR3 &boundHi
 	{
 		D3DXVec3Maximize(&boundHigh,&boundHigh,&pdata[i].position);
 		D3DXVec3Minimize(&boundLow,&boundLow,&pdata[i].position);			
+	}
+}
+
+int OctTree::getDXVecElement( int p, D3DXVECTOR3* d )
+{
+	switch (p)
+	{
+	case 0:
+		return (int)d->x;
+	case 1:
+		return (int)d->y;
+	case 2:
+		return (int)d->z;
 	}
 }

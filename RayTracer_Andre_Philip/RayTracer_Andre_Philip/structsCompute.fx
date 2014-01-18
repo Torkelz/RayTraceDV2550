@@ -7,7 +7,7 @@
 //#define noDGroupsX 100
 //#define noDGroupsY 100
 //#define noDGroupsZ 1
-#define	TEST		4
+#define	TEST		0
 
 #if  TEST == 0
 #define BOUNCES 0
@@ -41,6 +41,9 @@ struct cData
 	bool		firstPass;
 	int			nrVertices;
 	int			nrLights;
+	float3		boundingVMin;
+	float3		boundingVMax;
+	int			groups;
 };
 
 struct Ray
@@ -104,6 +107,12 @@ struct OBJMaterial
 	float4 Ka;
 	float4 Ks; //Shininess is the fourth value a.k.a w
 	float Ni;
+};
+
+struct MortonCode
+{
+	unsigned int primitiveID;
+	unsigned int code;
 };
 
 #endif // STRUCTSCOMPUTE

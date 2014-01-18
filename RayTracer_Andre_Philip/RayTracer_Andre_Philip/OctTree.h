@@ -14,7 +14,7 @@ struct OctNode
 	D3DXVECTOR3 boundLow;
 	
 	std::vector<OctNode*> nodes;
-	std::vector<OBJVertex*> vertices;
+	std::vector<D3DXVECTOR3> vertices;
 };
 struct Bounds
 {
@@ -29,14 +29,19 @@ public:
 	~OctTree(void);
 
 	void CreateTree(OBJVertex* pdata, int numElements);
-	void TreeCleanup();
+	void TreeCleanup(OctNode* node);
 
 private:
 	void findBounds(OBJVertex* pdata, int numElements, D3DXVECTOR3 &boundHigh,D3DXVECTOR3 &boundLow);
-	void subdivideTree(OctNode* node, int depth);
+	void subdivideTree(OctNode* node, int depth, OBJVertex* pdata);
+	void cleanEmptyNodes(OctNode* node);
+	int getDXVecElement(int p, D3DXVECTOR3* d);
+	int getNrNodes(OctNode* node);
+	int getNrLeafNodes(OctNode* node);
 	std::vector<Bounds> calcSubBounds(D3DXVECTOR3 boundHigh, D3DXVECTOR3 boundLow);
 
 	OctNode* root;
+	int maxDepth;
 
 };
 
