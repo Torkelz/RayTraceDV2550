@@ -13,11 +13,11 @@
 #include <tchar.h>
 
 #ifndef SAFE_RELEASE
-#define SAFE_RELEASE(p)      { if (p) { (p)->Release(); (p)=NULL; } }
+#define SAFE_RELEASE(p)      { if (p) { (p)->Release(); (p)=nullptr; } }
 #endif
 
 #ifndef SAFE_DELETE
-#define SAFE_DELETE(p)      { if (p) { delete (p); (p)=NULL; } }
+#define SAFE_DELETE(p)      { if (p) { delete (p); (p)=nullptr; } }
 #endif
 
 enum COMPUTE_BUFFER_TYPE

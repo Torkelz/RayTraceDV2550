@@ -47,7 +47,8 @@ bool ComputeShader::Init(TCHAR* shaderFile, char* blobFileAppendix, char* pFunct
 
 	if (pErrorBlob)
 	{
-		OutputDebugStringA((char*)pErrorBlob->GetBufferPointer());
+		char* err = (char*)pErrorBlob->GetBufferPointer();
+		OutputDebugStringA(err);
 	}
 
 	if(hr == S_OK)

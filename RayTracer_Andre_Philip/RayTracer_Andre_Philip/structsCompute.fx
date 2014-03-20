@@ -1,30 +1,30 @@
 #ifndef STRUCTSCOMPUTE
 #define STRUCTSCOMPUTE
 
-#define noThreadsX 4
-#define noThreadsY 4
-#define noThreadsZ 1
-#define noDGroupsX 100
-#define noDGroupsY 100
-#define noDGroupsZ 1
-#define	TEST		4
-
-#if  TEST == 0
-#define BOUNCES 0
-#define LIGHTS  1
-#elif	TEST == 1
-#define BOUNCES 10
-#define LIGHTS  10
-#elif	TEST == 2
-#define BOUNCES 10
-#define LIGHTS  1
-#elif	TEST == 3
-#define BOUNCES 0
-#define LIGHTS  10
-#elif	TEST == 4
-#define BOUNCES 5
-#define LIGHTS  5
-#endif
+//#define noThreadsX 4
+//#define noThreadsY 4
+//#define noThreadsZ 1
+//#define noDGroupsX 100
+//#define noDGroupsY 100
+//#define noDGroupsZ 1
+//#define	TEST		4
+//
+//#if  TEST == 0
+//#define BOUNCES 0
+//#define LIGHTS  1
+//#elif	TEST == 1
+//#define BOUNCES 10
+//#define LIGHTS  10
+//#elif	TEST == 2
+//#define BOUNCES 10
+//#define LIGHTS  1
+//#elif	TEST == 3
+//#define BOUNCES 0
+//#define LIGHTS  10
+//#elif	TEST == 4
+//#define BOUNCES 5
+//#define LIGHTS  5
+//#endif
 
 
 struct cData

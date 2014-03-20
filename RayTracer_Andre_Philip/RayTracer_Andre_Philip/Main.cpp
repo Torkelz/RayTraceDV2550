@@ -15,6 +15,7 @@
 #include "Main.h"
 #include "OBJLoader.h"
 
+#define TEST
 
 //--------------------------------------------------------------------------------------
 // Global Variables
@@ -61,15 +62,56 @@ int							g_nrLights				= 10;
 
 int g_Width, g_Height;
 
+
+struct ShaderDefinitions
+{
+	std::string noThreadsX;
+	std::string noThreadsY;
+	std::string noThreadsZ;
+	std::string noDGroupsX;
+	std::string noDGroupsY;
+	std::string noDGroupsZ;
+	std::string BOUNCES;
+	std::string LIGHTS;
+	bool firstPass;
+	float avgCompRay;
+	float avgIntersect;
+	float avgColor;
+
+	ComputeShader*	CS_ComputeRay;
+	ComputeShader*	CS_IntersectionStage;
+	ComputeShader*	CS_ColorStage;
+
+	ShaderDefinitions() : noThreadsX(),noThreadsY(),noThreadsZ(),
+		noDGroupsX(),noDGroupsY(),noDGroupsZ(),BOUNCES(),LIGHTS(),
+		CS_ComputeRay(nullptr), CS_IntersectionStage(nullptr), CS_ColorStage(nullptr),
+		firstPass(true),avgCompRay(0.f),avgIntersect(0.f),avgColor(0.f)
+	{
+
+	}
+
+	~ShaderDefinitions()
+	{
+		SAFE_DELETE(CS_ComputeRay);
+		SAFE_DELETE(CS_IntersectionStage);
+		SAFE_DELETE(CS_ColorStage);
+	}
+};
+
+vector<ShaderDefinitions> g_Shaders;
+
 //--------------------------------------------------------------------------------------
 // Forward declarations
 //--------------------------------------------------------------------------------------
 HRESULT             InitWindow( HINSTANCE hInstance, int nCmdShow );
 LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
-HRESULT				Render(float deltaTime);
+HRESULT				Render(float deltaTime, ShaderDefinitions &shader);
 HRESULT				Update(float deltaTime);
 Vertex*				CreateBox(int size, D3DXVECTOR3 center);
 void				UpdateMovement(float p_dt);
+void				CreateShaders(int threadsX, int threadsY, int threadsZ, int groupsX,
+								  int groupsY, int groupsZ, int bounces, int lights);
+
 
 char* FeatureLevelToString(D3D_FEATURE_LEVEL featureLevel)
 {
@@ -239,12 +281,9 @@ HRESULT Init()
 	g_DeviceContext->UpdateSubresource(g_cBuffer->getBufferPointer(), 0, NULL, &g_cData, 0, 0);
 
 	//Primary rays
-	g_CS_ComputeRay = g_ComputeSys->CreateComputeShader(_T("PrimaryRayCompute.fx"), NULL, "main", NULL);
 	g_rayBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(Ray),g_Height*g_Width, true, true, NULL,true, "Structured Buffer:Rays");
 
-	//IntersectionStage
-	g_CS_IntersectionStage = g_ComputeSys->CreateComputeShader(_T("IntersectionStageCOmpute.fx"), NULL, "main", NULL);
-	
+	//IntersectionStage	
 	g_ObjectBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(Vertex),36, true, false, box,false, "Structured Buffer:BOXVertex");
 	g_OBJBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(OBJVertex),g_loader->getVertices().size(), true, false, g_loader->getVertices().data(),false, "Structured Buffer:OBJVertex");
 	g_indexBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(DWORD),g_loader->getIndices().size(), true, false, g_loader->getIndices().data(),false, "Structured Buffer:Indices");
@@ -254,11 +293,24 @@ HRESULT Init()
 	D3DX11CreateShaderResourceViewFromFile(g_Device, g_loader->GetMaterialAt(0).map_Kd,NULL,NULL,&g_objTexture, &hr);
 
 	//ColorStage
-	g_CS_ColorStage = g_ComputeSys->CreateComputeShader(_T("ColorStageCompute.fx"), NULL, "main", NULL);
 	g_lightBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(PointLight),sizeof(g_lights)/sizeof(PointLight), true, false, &g_lights,true, "Structured Buffer:Light");
 	g_accColorBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(D3DXVECTOR4),g_Height*g_Width, true, true, NULL,true, "Structured Buffer:accColor");
 	g_materialBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(OBJMaterial),g_materialList.size(), true, false, g_materialList.data(),false, "Structured Buffer:OBJMaterail");
 	
+	CreateShaders(4,4,1,100,100,1,0,1);
+
+#ifdef TEST
+
+	for(int i = 16; i % 2 == 0 && i > 0; i * 0.5 )
+	{
+		CreateShaders(i,i,1,100,100,1,0,1);
+		CreateShaders(i,i,1,100,100,1,10,10);
+		CreateShaders(i,i,1,100,100,1,10,1);
+		CreateShaders(i,i,1,100,100,1,0,10);
+		CreateShaders(i,i,1,100,100,1,5,5);
+	}	
+#endif
+
 	return S_OK;
 }
 
@@ -298,7 +350,7 @@ HRESULT Update(float deltaTime)
 	return S_OK;
 }
 
-HRESULT Render(float deltaTime)
+HRESULT Render(float deltaTime, ShaderDefinitions &shader)
 {
 	g_DeviceContext->UpdateSubresource(g_cBuffer->getBufferPointer(), 0, NULL, &g_cData, 0, 0);
 	g_cBuffer->apply(0);
@@ -330,32 +382,32 @@ HRESULT Render(float deltaTime)
 	// ### PRIMARY RAY ###
 	g_DeviceContext->CSSetUnorderedAccessViews(0, 1, uavrays, NULL);
 
-	g_CS_ComputeRay->Set();
+	shader.CS_ComputeRay->Set();
 	g_Timer->Start();
-	g_DeviceContext->Dispatch( noDGroupsX, noDGroupsY, noDGroupsZ );
+	g_DeviceContext->Dispatch( std::atoi(shader.noDGroupsX.c_str()), std::atoi(shader.noDGroupsY.c_str()), std::atoi(shader.noDGroupsZ.c_str()) );
 	g_Timer->Stop();
-	g_CS_ComputeRay->Unset();
+	shader.CS_ComputeRay->Unset();
 	////Clear used resources
 	g_DeviceContext->CSSetUnorderedAccessViews(0, 1, clearuav, NULL);
 	// ### PRIMARY RAY END ###
-	rcTime = g_Timer->GetTime();
+	shader.avgCompRay = (shader.avgCompRay + (float)g_Timer->GetTime()) * 0.5f;
 
-	for(int i = 0; i <= BOUNCES; i++)
+	unsigned int bounces = std::atoi(shader.BOUNCES.c_str());
+	for(unsigned int i = 0; i <= bounces; i++)
 	{
 		// ### IntersectionStage ###		
 		g_DeviceContext->CSSetShaderResources(0,4,bufftri);
 		g_DeviceContext->CSSetUnorderedAccessViews(0, 2, intersectionBuffer, NULL);
-
-		g_CS_IntersectionStage->Set();
+		shader.CS_IntersectionStage->Set();
 		g_Timer->Start();
-		g_DeviceContext->Dispatch( noDGroupsX, noDGroupsY, noDGroupsZ );
+		g_DeviceContext->Dispatch( std::atoi(g_Shaders.at(i).noDGroupsX.c_str()), std::atoi(g_Shaders.at(i).noDGroupsY.c_str()), std::atoi(g_Shaders.at(i).noDGroupsZ.c_str()) );
 		g_Timer->Stop();
-		g_CS_IntersectionStage->Unset();
+		shader.CS_IntersectionStage->Unset();
 		//Clear used resources
 		g_DeviceContext->CSSetUnorderedAccessViews(0, 2, clearuav, NULL);
 		g_DeviceContext->CSSetShaderResources(0,4,clearsrv);
 		// ### IntersectionStage END ###
-		interTime += g_Timer->GetTime();
+		shader.avgIntersect = (shader.avgIntersect + (float)g_Timer->GetTime()) * 0.5f;
 		// ### ColorStage ###
 		/*PointLight* lightPointer =  g_lightBuffer->Map<PointLight>();
 
@@ -366,39 +418,46 @@ HRESULT Render(float deltaTime)
 		g_DeviceContext->CSSetShaderResources(0,6,colorBuffer);		
 		g_DeviceContext->CSSetUnorderedAccessViews(0, 2, uav, NULL);
 
-		g_CS_ColorStage->Set();
+		shader.CS_ColorStage->Set();
 		g_Timer->Start();
-		g_DeviceContext->Dispatch( noDGroupsX, noDGroupsY, noDGroupsZ );
+		g_DeviceContext->Dispatch( std::atoi(g_Shaders.at(i).noDGroupsX.c_str()), std::atoi(g_Shaders.at(i).noDGroupsY.c_str()), std::atoi(g_Shaders.at(i).noDGroupsZ.c_str()) );
 		g_Timer->Stop();
-		g_CS_ColorStage->Unset();
+		shader.CS_ColorStage->Unset();
 		//Clear used resources
 		g_DeviceContext->CSSetShaderResources(0,6,clearsrv);		
 		g_DeviceContext->CSSetUnorderedAccessViews(0, 2, clearuav, NULL);
 		// ### ColorStage END ###
-		colorTime += g_Timer->GetTime();
-		if(g_cData.firstPass)
+		shader.avgColor = (shader.avgColor + (float)g_Timer->GetTime()) * 0.5f;
+
+		if(shader.firstPass)
 		{
-			g_cData.firstPass = false;
+			shader.firstPass = false;
+			g_cData.firstPass = shader.firstPass;
 			g_DeviceContext->UpdateSubresource(g_cBuffer->getBufferPointer(), 0, NULL, &g_cData, 0, 0);
 		}
 	}
 
-	g_cData.firstPass = true;
+	shader.firstPass = true;
+	g_cData.firstPass = shader.firstPass;
 	g_DeviceContext->UpdateSubresource(g_cBuffer->getBufferPointer(), 0, NULL, &g_cData, 0, 0);
+			
+
 
 	if(FAILED(g_SwapChain->Present( 0, 0 )))
 		return E_FAIL;
 
+	
 
-	char title[256];
-	sprintf_s(
-		title,
-		sizeof(title),
-		"RayTrace - DTime RC: %f, DTime Inters: %f, DTime Color: %f, DTime Total: %f,CamPos %d,%d,%d",
-		rcTime, interTime/(BOUNCES+1), colorTime/(BOUNCES+1), rcTime + interTime + colorTime,
-		(int)g_camera->getPosition().x,(int)g_camera->getPosition().y,(int)g_camera->getPosition().z
-	);
-	SetWindowText(g_hWnd, title);
+
+	//char title[256];
+	//sprintf_s(
+	//	title,
+	//	sizeof(title),
+	//	"RayTrace - DTime RC: %f, DTime Inters: %f, DTime Color: %f, DTime Total: %f,CamPos %d,%d,%d",
+	//	rcTime, interTime/(BOUNCES+1), colorTime/(BOUNCES+1), rcTime + interTime + colorTime,
+	//	(int)g_camera->getPosition().x,(int)g_camera->getPosition().y,(int)g_camera->getPosition().z
+	//);
+	//SetWindowText(g_hWnd, title);
 
 	return S_OK;
 }
@@ -453,6 +512,34 @@ int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 	MSG msg = {0};
 	while(WM_QUIT != msg.message)
 	{
+#ifdef TEST
+		for( auto &shader : g_Shaders)
+		{
+			float timer = 0.f;
+
+			while(timer < 100)
+			{
+				if( PeekMessage( &msg, NULL, 0, 0, PM_REMOVE) )
+				{
+					TranslateMessage( &msg );
+					DispatchMessage( &msg );
+				}
+				else
+				{
+					__int64 currTimeStamp = 0;
+					QueryPerformanceCounter((LARGE_INTEGER*)&currTimeStamp);
+					float dt = (currTimeStamp - prevTimeStamp) * secsPerCnt;
+
+					//render
+					Update(dt);
+					Render(dt, shader);
+
+					prevTimeStamp = currTimeStamp;
+				}
+				timer += shader.avgCompRay + shader.avgIntersect + shader.avgColor;
+			}
+		}
+#else
 		if( PeekMessage( &msg, NULL, 0, 0, PM_REMOVE) )
 		{
 			TranslateMessage( &msg );
@@ -466,10 +553,11 @@ int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 
 			//render
 			Update(dt);
-			Render(dt);
+			Render(dt, g_Shaders.back());
 
 			prevTimeStamp = currTimeStamp;
 		}
+#endif
 	}
 
 	return (int) msg.wParam;
@@ -654,4 +742,41 @@ Vertex* CreateBox(int size, D3DXVECTOR3 center)
 
 
 	return box;
+}
+
+void CreateShaders(int threadsX, int threadsY, int threadsZ, int groupsX,
+	int groupsY, int groupsZ, int bounces, int lights)
+{
+	g_Shaders.push_back(ShaderDefinitions());
+	
+	g_Shaders.back().noThreadsX = std::to_string(threadsX);
+	g_Shaders.back().noThreadsY = std::to_string(threadsY);
+	g_Shaders.back().noThreadsZ = std::to_string(threadsZ);
+	g_Shaders.back().noDGroupsX = std::to_string(groupsX);
+	g_Shaders.back().noDGroupsY = std::to_string(groupsY);
+	g_Shaders.back().noDGroupsZ = std::to_string(groupsZ);
+	g_Shaders.back().BOUNCES = std::to_string(bounces);
+	g_Shaders.back().LIGHTS = std::to_string(lights);
+
+	D3D_SHADER_MACRO Shader_Macros[] = {"noThreadsX", g_Shaders.back().noThreadsX.c_str(),
+		"noThreadsY",  g_Shaders.back().noThreadsY.c_str(),
+		"noThreadsZ",  g_Shaders.back().noThreadsZ.c_str(),
+		"noDGroupsX",  g_Shaders.back().noDGroupsX.c_str(),
+		"noDGroupsY",  g_Shaders.back().noDGroupsY.c_str(),
+		"noDGroupsZ",  g_Shaders.back().noThreadsZ.c_str(),
+		"BOUNCES",  g_Shaders.back().BOUNCES.c_str(),
+		"LIGHTS",  g_Shaders.back().LIGHTS.c_str(),
+		NULL,NULL};
+
+	//Primary rays
+	g_Shaders.back().CS_ComputeRay = g_ComputeSys->CreateComputeShader(_T("PrimaryRayCompute.fx"), NULL, "main", Shader_Macros);
+
+	//IntersectionStage
+	g_Shaders.back().CS_IntersectionStage = g_ComputeSys->CreateComputeShader(_T("IntersectionStageCOmpute.fx"), NULL, "main", Shader_Macros);
+
+	//ColorStage
+	g_Shaders.back().CS_ColorStage = g_ComputeSys->CreateComputeShader(_T("ColorStageCompute.fx"), NULL, "main", Shader_Macros);
+
+	if(!g_Shaders.back().CS_ComputeRay || !g_Shaders.back().CS_IntersectionStage || !g_Shaders.back().CS_ColorStage)
+		g_Shaders.pop_back();
 }
