@@ -35,7 +35,7 @@ void D3D11Timer::Stop()
     mDeviceContext->End(mDisjoint);
 }
 
-double D3D11Timer::GetTime()
+double D3D11Timer::GetTime() //Returns milliseconds
 {
 	UINT64 startTime = 0;
 	while(mDeviceContext->GetData(mStart, &startTime, sizeof(startTime), 0) != S_OK);

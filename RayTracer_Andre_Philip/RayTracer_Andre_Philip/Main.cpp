@@ -16,6 +16,7 @@
 #include "OBJLoader.h"
 
 #define TEST
+#define RESOLUTION 400
 
 //--------------------------------------------------------------------------------------
 // Global Variables
@@ -61,6 +62,7 @@ int							g_lightSpeed			= 10;
 int							g_nrLights				= 10;
 
 int g_Width, g_Height;
+bool g_ShouldQuit;
 
 
 struct ShaderDefinitions
@@ -89,7 +91,18 @@ struct ShaderDefinitions
 	{
 
 	}
-
+	ShaderDefinitions(ShaderDefinitions &&p_Other)
+		: noThreadsX(std::move(p_Other.noThreadsX)),noThreadsY(std::move(p_Other.noThreadsY)),noThreadsZ(std::move(p_Other.noThreadsZ)),
+		noDGroupsX(std::move(p_Other.noDGroupsX)),noDGroupsY(std::move(p_Other.noDGroupsY)),noDGroupsZ(std::move(p_Other.noDGroupsZ)),
+		BOUNCES(std::move(p_Other.BOUNCES)),LIGHTS(std::move(p_Other.LIGHTS)),
+		CS_ComputeRay(std::move(p_Other.CS_ComputeRay)), CS_IntersectionStage(std::move(p_Other.CS_IntersectionStage)), 
+		CS_ColorStage(std::move(p_Other.CS_ColorStage)),	firstPass(std::move(p_Other.firstPass)),
+		avgCompRay(std::move(p_Other.avgCompRay)),avgIntersect(std::move(p_Other.avgIntersect)),avgColor(std::move(p_Other.avgColor))
+	{
+		p_Other.CS_ComputeRay = nullptr;
+		p_Other.CS_IntersectionStage = nullptr;
+		p_Other.CS_ColorStage = nullptr;
+	}
 	~ShaderDefinitions()
 	{
 		SAFE_DELETE(CS_ComputeRay);
@@ -261,8 +274,6 @@ HRESULT Init()
 	g_cBuffer->apply(0);
 
 	Vertex* box = CreateBox(40,D3DXVECTOR3(0,0,0));
-	//D3DXVECTOR4* dummy;
-	//dummy = (D3DXVECTOR4*) std::calloc(g_Height*g_Width, sizeof(D3DXVECTOR4));
 
 	g_loader = new Loader("obj//");
 	g_loader->loadFile("sf.obj");
@@ -297,18 +308,21 @@ HRESULT Init()
 	g_accColorBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(D3DXVECTOR4),g_Height*g_Width, true, true, NULL,true, "Structured Buffer:accColor");
 	g_materialBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(OBJMaterial),g_materialList.size(), true, false, g_materialList.data(),false, "Structured Buffer:OBJMaterail");
 	
-	CreateShaders(4,4,1,100,100,1,0,1);
+	//CreateShaders(4,4,1,100,100,1,0,1);
 
 #ifdef TEST
 
-	for(int i = 16; i % 2 == 0 && i > 0; i * 0.5 )
+	for(int i = (int)(32 * ((float)RESOLUTION / 800)); i % 2 == 0 && i > 0; i = (int)(i * 0.5f))
 	{
-		CreateShaders(i,i,1,100,100,1,0,1);
-		CreateShaders(i,i,1,100,100,1,10,10);
-		CreateShaders(i,i,1,100,100,1,10,1);
-		CreateShaders(i,i,1,100,100,1,0,10);
-		CreateShaders(i,i,1,100,100,1,5,5);
-	}	
+		int groups = (int)((float)RESOLUTION/i);
+		CreateShaders(i,i,1,groups,groups,1,0,1);
+		CreateShaders(i,i,1,groups,groups,1,10,10);
+		CreateShaders(i,i,1,groups,groups,1,10,1);
+		CreateShaders(i,i,1,groups,groups,1,0,10);
+		CreateShaders(i,i,1,groups,groups,1,5,5);
+	}
+#else
+	CreateShaders(2,2,1,200,200,1,0,1);
 #endif
 
 	return S_OK;
@@ -354,25 +368,22 @@ HRESULT Render(float deltaTime, ShaderDefinitions &shader)
 {
 	g_DeviceContext->UpdateSubresource(g_cBuffer->getBufferPointer(), 0, NULL, &g_cData, 0, 0);
 	g_cBuffer->apply(0);
+	
+	static ID3D11UnorderedAccessView* clearuav[]			= { 0,0,0,0,0,0,0 };
+	static ID3D11ShaderResourceView* clearsrv[]			= { 0,0,0,0,0,0,0 };
 
-	double rcTime, interTime, colorTime;
-	rcTime = interTime = colorTime = 0.f;
-
-	ID3D11UnorderedAccessView* clearuav[]			= { 0,0,0,0,0,0,0 };
-	ID3D11ShaderResourceView* clearsrv[]			= { 0,0,0,0,0,0,0 };
-
-	ID3D11ShaderResourceView* bufftri[]				= { g_ObjectBuffer->GetResourceView(),
+	static ID3D11ShaderResourceView* bufftri[]				= { g_ObjectBuffer->GetResourceView(),
 														g_OBJBuffer->GetResourceView(),
 														g_indexBuffer->GetResourceView(),
 														g_objTexture};
 
-	ID3D11UnorderedAccessView* uavrays[]			= { g_rayBuffer->GetUnorderedAccessView() };
-	ID3D11UnorderedAccessView* uav[]				= { g_BackBufferUAV,
+	static ID3D11UnorderedAccessView* uavrays[]			= { g_rayBuffer->GetUnorderedAccessView() };
+	static ID3D11UnorderedAccessView* uav[]				= { g_BackBufferUAV,
 														g_accColorBuffer->GetUnorderedAccessView()};
-	ID3D11UnorderedAccessView* intersectionBuffer[] = {	g_rayBuffer->GetUnorderedAccessView(),
+	static ID3D11UnorderedAccessView* intersectionBuffer[] = {	g_rayBuffer->GetUnorderedAccessView(),
 														g_hitDataBuffer->GetUnorderedAccessView()};
 	
-	ID3D11ShaderResourceView* colorBuffer[]			= {	g_ObjectBuffer->GetResourceView(),
+	static ID3D11ShaderResourceView* colorBuffer[]			= {	g_ObjectBuffer->GetResourceView(),
 														g_hitDataBuffer->GetResourceView(),
 														g_lightBuffer->GetResourceView(),
 														g_OBJBuffer->GetResourceView(),
@@ -383,7 +394,7 @@ HRESULT Render(float deltaTime, ShaderDefinitions &shader)
 	g_DeviceContext->CSSetUnorderedAccessViews(0, 1, uavrays, NULL);
 
 	shader.CS_ComputeRay->Set();
-	g_Timer->Start();
+	g_Timer->Start();		
 	g_DeviceContext->Dispatch( std::atoi(shader.noDGroupsX.c_str()), std::atoi(shader.noDGroupsY.c_str()), std::atoi(shader.noDGroupsZ.c_str()) );
 	g_Timer->Stop();
 	shader.CS_ComputeRay->Unset();
@@ -400,7 +411,7 @@ HRESULT Render(float deltaTime, ShaderDefinitions &shader)
 		g_DeviceContext->CSSetUnorderedAccessViews(0, 2, intersectionBuffer, NULL);
 		shader.CS_IntersectionStage->Set();
 		g_Timer->Start();
-		g_DeviceContext->Dispatch( std::atoi(g_Shaders.at(i).noDGroupsX.c_str()), std::atoi(g_Shaders.at(i).noDGroupsY.c_str()), std::atoi(g_Shaders.at(i).noDGroupsZ.c_str()) );
+		g_DeviceContext->Dispatch( std::atoi(shader.noDGroupsX.c_str()), std::atoi(shader.noDGroupsY.c_str()), std::atoi(shader.noDGroupsZ.c_str()) );
 		g_Timer->Stop();
 		shader.CS_IntersectionStage->Unset();
 		//Clear used resources
@@ -420,7 +431,7 @@ HRESULT Render(float deltaTime, ShaderDefinitions &shader)
 
 		shader.CS_ColorStage->Set();
 		g_Timer->Start();
-		g_DeviceContext->Dispatch( std::atoi(g_Shaders.at(i).noDGroupsX.c_str()), std::atoi(g_Shaders.at(i).noDGroupsY.c_str()), std::atoi(g_Shaders.at(i).noDGroupsZ.c_str()) );
+		g_DeviceContext->Dispatch( std::atoi(shader.noDGroupsX.c_str()), std::atoi(shader.noDGroupsY.c_str()), std::atoi(shader.noDGroupsZ.c_str()) );
 		g_Timer->Stop();
 		shader.CS_ColorStage->Unset();
 		//Clear used resources
@@ -445,20 +456,7 @@ HRESULT Render(float deltaTime, ShaderDefinitions &shader)
 
 	if(FAILED(g_SwapChain->Present( 0, 0 )))
 		return E_FAIL;
-
 	
-
-
-	//char title[256];
-	//sprintf_s(
-	//	title,
-	//	sizeof(title),
-	//	"RayTrace - DTime RC: %f, DTime Inters: %f, DTime Color: %f, DTime Total: %f,CamPos %d,%d,%d",
-	//	rcTime, interTime/(BOUNCES+1), colorTime/(BOUNCES+1), rcTime + interTime + colorTime,
-	//	(int)g_camera->getPosition().x,(int)g_camera->getPosition().y,(int)g_camera->getPosition().z
-	//);
-	//SetWindowText(g_hWnd, title);
-
 	return S_OK;
 }
 
@@ -496,10 +494,10 @@ void UpdateMovement(float p_dt)
 int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdLine, int nCmdShow )
 {
 	if( FAILED( InitWindow( hInstance, nCmdShow ) ) )
-		return 0;
+		return EXIT_FAILURE;
 
 	if( FAILED( Init() ) )
-		return 0;
+		return EXIT_FAILURE;
 
 	__int64 cntsPerSec = 0;
 	QueryPerformanceFrequency((LARGE_INTEGER*)&cntsPerSec);
@@ -509,37 +507,60 @@ int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 	QueryPerformanceCounter((LARGE_INTEGER*)&prevTimeStamp);
 
 	// Main message loop
-	MSG msg = {0};
-	while(WM_QUIT != msg.message)
-	{
+	if(g_Shaders.empty())
+		return EXIT_FAILURE;
+
 #ifdef TEST
+	for( auto &shader : g_Shaders)
+	{
+		float timer = 0.f;
+
+		while(timer < 5)
+		{
+			__int64 currTimeStamp = 0;
+			QueryPerformanceCounter((LARGE_INTEGER*)&currTimeStamp);
+			float dt = (currTimeStamp - prevTimeStamp) * secsPerCnt;
+
+			//render
+			Update(dt);
+			Render(dt, shader);
+
+			prevTimeStamp = currTimeStamp;
+
+			timer += dt;//shader.avgCompRay + shader.avgIntersect + shader.avgColor;
+		}
+	}
+
+	ofstream myfile("test.txt");
+	if(myfile.is_open())
+	{
+		myfile << "TESTS " << RESOLUTION << "x" << RESOLUTION << "\n";
+		myfile << "-------------------------------------\n";
 		for( auto &shader : g_Shaders)
 		{
-			float timer = 0.f;
+			myfile << "Threads(" << shader.noThreadsX << ","
+				<< shader.noThreadsY << ","
+				<< shader.noThreadsZ << ") ";
+			myfile << "Groups(" << shader.noDGroupsX << ","
+				<< shader.noDGroupsY << ","
+				<< shader.noDGroupsZ << ")\n";
+			myfile << "Bounces: " << shader.BOUNCES << ", "
+				<< "Lights: " << shader.LIGHTS << ".\n\n";
+			myfile << "Average RayCreation: \t\t" << shader.avgCompRay << " Milliseconds.\n";
+			myfile << "Average IntersectionStage: \t" << shader.avgIntersect << " Milliseconds.\n";
+			myfile << "Average ColorStage: \t\t" << shader.avgColor << " Milliseconds.\n";
+			myfile << "-------------------------------------\n";
 
-			while(timer < 100)
-			{
-				if( PeekMessage( &msg, NULL, 0, 0, PM_REMOVE) )
-				{
-					TranslateMessage( &msg );
-					DispatchMessage( &msg );
-				}
-				else
-				{
-					__int64 currTimeStamp = 0;
-					QueryPerformanceCounter((LARGE_INTEGER*)&currTimeStamp);
-					float dt = (currTimeStamp - prevTimeStamp) * secsPerCnt;
-
-					//render
-					Update(dt);
-					Render(dt, shader);
-
-					prevTimeStamp = currTimeStamp;
-				}
-				timer += shader.avgCompRay + shader.avgIntersect + shader.avgColor;
-			}
 		}
+	}
+	myfile.close();
+
+	return EXIT_SUCCESS;
 #else
+	MSG msg = {0};
+
+	while(WM_QUIT != msg.message)
+	{
 		if( PeekMessage( &msg, NULL, 0, 0, PM_REMOVE) )
 		{
 			TranslateMessage( &msg );
@@ -553,14 +574,13 @@ int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 
 			//render
 			Update(dt);
-			Render(dt, g_Shaders.back());
+			Render(dt, g_Shaders.front());
 
 			prevTimeStamp = currTimeStamp;
 		}
-#endif
 	}
-
 	return (int) msg.wParam;
+#endif
 }
 
 
@@ -588,7 +608,7 @@ HRESULT InitWindow( HINSTANCE hInstance, int nCmdShow )
 
 	// Create window
 	g_hInst = hInstance; 
-	RECT rc = { 0, 0, 400, 400 };
+	RECT rc = { 0, 0, RESOLUTION, RESOLUTION };
 	AdjustWindowRect( &rc, WS_OVERLAPPEDWINDOW, FALSE );
 	
 	if(!(g_hWnd = CreateWindow(
@@ -640,7 +660,7 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
 		switch(wParam)
 		{
 			case VK_ESCAPE:
-				PostQuitMessage(0);
+				g_ShouldQuit = true;//PostQuitMessage(0);
 				break;
 		}
 		break;
