@@ -1,0 +1,142 @@
+TESTS 400x400
+-------------------------------------
+Threads(16,16,1) Groups(25,25,1)
+Bounces: 0, Lights: 1.
+
+Average RayCreation: 		0.147641 Milliseconds.
+Average IntersectionStage: 	4.67154 Milliseconds.
+Average ColorStage: 		3.70327 Milliseconds.
+-------------------------------------
+Threads(16,16,1) Groups(25,25,1)
+Bounces: 10, Lights: 10.
+
+Average RayCreation: 		0.145326 Milliseconds.
+Average IntersectionStage: 	4.65103 Milliseconds.
+Average ColorStage: 		111.694 Milliseconds.
+-------------------------------------
+Threads(16,16,1) Groups(25,25,1)
+Bounces: 10, Lights: 1.
+
+Average RayCreation: 		0.149251 Milliseconds.
+Average IntersectionStage: 	4.66135 Milliseconds.
+Average ColorStage: 		3.69141 Milliseconds.
+-------------------------------------
+Threads(16,16,1) Groups(25,25,1)
+Bounces: 0, Lights: 10.
+
+Average RayCreation: 		0.147807 Milliseconds.
+Average IntersectionStage: 	4.6694 Milliseconds.
+Average ColorStage: 		91.9429 Milliseconds.
+-------------------------------------
+Threads(16,16,1) Groups(25,25,1)
+Bounces: 5, Lights: 5.
+
+Average RayCreation: 		0.148584 Milliseconds.
+Average IntersectionStage: 	4.67483 Milliseconds.
+Average ColorStage: 		51.6133 Milliseconds.
+-------------------------------------
+Threads(8,8,1) Groups(50,50,1)
+Bounces: 0, Lights: 1.
+
+Average RayCreation: 		0.152978 Milliseconds.
+Average IntersectionStage: 	4.67023 Milliseconds.
+Average ColorStage: 		3.55938 Milliseconds.
+-------------------------------------
+Threads(8,8,1) Groups(50,50,1)
+Bounces: 10, Lights: 10.
+
+Average RayCreation: 		0.149958 Milliseconds.
+Average IntersectionStage: 	4.65678 Milliseconds.
+Average ColorStage: 		97.9949 Milliseconds.
+-------------------------------------
+Threads(8,8,1) Groups(50,50,1)
+Bounces: 10, Lights: 1.
+
+Average RayCreation: 		0.153385 Milliseconds.
+Average IntersectionStage: 	4.66637 Milliseconds.
+Average ColorStage: 		3.52057 Milliseconds.
+-------------------------------------
+Threads(8,8,1) Groups(50,50,1)
+Bounces: 0, Lights: 10.
+
+Average RayCreation: 		0.15177 Milliseconds.
+Average IntersectionStage: 	4.66483 Milliseconds.
+Average ColorStage: 		88.1851 Milliseconds.
+-------------------------------------
+Threads(8,8,1) Groups(50,50,1)
+Bounces: 5, Lights: 5.
+
+Average RayCreation: 		0.1549 Milliseconds.
+Average IntersectionStage: 	4.6666 Milliseconds.
+Average ColorStage: 		41.699 Milliseconds.
+-------------------------------------
+Threads(4,4,1) Groups(100,100,1)
+Bounces: 0, Lights: 1.
+
+Average RayCreation: 		0.151237 Milliseconds.
+Average IntersectionStage: 	17.639 Milliseconds.
+Average ColorStage: 		13.255 Milliseconds.
+-------------------------------------
+Threads(4,4,1) Groups(100,100,1)
+Bounces: 10, Lights: 10.
+
+Average RayCreation: 		0.131556 Milliseconds.
+Average IntersectionStage: 	17.6033 Milliseconds.
+Average ColorStage: 		359.721 Milliseconds.
+-------------------------------------
+Threads(4,4,1) Groups(100,100,1)
+Bounces: 10, Lights: 1.
+
+Average RayCreation: 		0.141407 Milliseconds.
+Average IntersectionStage: 	17.6044 Milliseconds.
+Average ColorStage: 		12.9639 Milliseconds.
+-------------------------------------
+Threads(4,4,1) Groups(100,100,1)
+Bounces: 0, Lights: 10.
+
+Average RayCreation: 		0.151138 Milliseconds.
+Average IntersectionStage: 	17.6354 Milliseconds.
+Average ColorStage: 		337.584 Milliseconds.
+-------------------------------------
+Threads(4,4,1) Groups(100,100,1)
+Bounces: 5, Lights: 5.
+
+Average RayCreation: 		0.147062 Milliseconds.
+Average IntersectionStage: 	17.6042 Milliseconds.
+Average ColorStage: 		149.353 Milliseconds.
+-------------------------------------
+Threads(2,2,1) Groups(200,200,1)
+Bounces: 0, Lights: 1.
+
+Average RayCreation: 		0.166471 Milliseconds.
+Average IntersectionStage: 	69.7565 Milliseconds.
+Average ColorStage: 		52.0122 Milliseconds.
+-------------------------------------
+Threads(2,2,1) Groups(200,200,1)
+Bounces: 10, Lights: 10.
+
+Average RayCreation: 		0.125852 Milliseconds.
+Average IntersectionStage: 	69.6194 Milliseconds.
+Average ColorStage: 		1371.4 Milliseconds.
+-------------------------------------
+Threads(2,2,1) Groups(200,200,1)
+Bounces: 10, Lights: 1.
+
+Average RayCreation: 		0.0845926 Milliseconds.
+Average IntersectionStage: 	69.583 Milliseconds.
+Average ColorStage: 		49.7485 Milliseconds.
+-------------------------------------
+Threads(2,2,1) Groups(200,200,1)
+Bounces: 0, Lights: 10.
+
+Average RayCreation: 		0.156954 Milliseconds.
+Average IntersectionStage: 	65.3873 Milliseconds.
+Average ColorStage: 		1243.22 Milliseconds.
+-------------------------------------
+Threads(2,2,1) Groups(200,200,1)
+Bounces: 5, Lights: 5.
+
+Average RayCreation: 		0.125778 Milliseconds.
+Average IntersectionStage: 	69.6037 Milliseconds.
+Average ColorStage: 		564.445 Milliseconds.
+-------------------------------------

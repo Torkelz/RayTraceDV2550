@@ -9,11 +9,21 @@ Ray CreateRay(uint3 thread, int screenWidth, int screenHeight, float3 camPos, ma
 cbuffer cBufferdata : register(b0){cData cd;};
 
 RWStructuredBuffer<Ray> outputRay : register(u0);
+RWStructuredBuffer<HitData> OutputHitdata : register(u1);
+RWTexture2D<float4> output : register(u2);
+RWStructuredBuffer<float4> accOutput : register(u3);
+
 
 [numthreads(noThreadsX, noThreadsY, noThreadsZ)]
 void main( uint3 ThreadID : SV_DispatchThreadID )
 {
-	outputRay[ThreadID.x + (ThreadID.y*cd.screenWidth)] = CreateRay(ThreadID, cd.screenWidth, cd.screenHeight, cd.camPos, cd.projMatInv, cd.viewMatInv);
+	uint index = ThreadID.x + (ThreadID.y*cd.screenWidth);
+	outputRay[index] = CreateRay(ThreadID, cd.screenWidth, cd.screenHeight, cd.camPos, cd.projMatInv, cd.viewMatInv);
+
+	//Sets data to default values
+	OutputHitdata[index].id = -1;
+	accOutput[index] = float4(0,0,0,0);
+	output[ThreadID.xy] = float4(0,0,0,1);
 }
 
 Ray CreateRay(uint3 thread, int screenWidth, int screenHeight, float3 camPos, matrix projMatInv, matrix viewMatInv)

@@ -62,7 +62,7 @@ int							g_lightSpeed			= 10;
 int							g_nrLights				= 10;
 
 int g_Width, g_Height;
-bool g_ShouldQuit;
+//bool g_ShouldQuit;
 
 
 struct ShaderDefinitions
@@ -377,7 +377,10 @@ HRESULT Render(float deltaTime, ShaderDefinitions &shader)
 														g_indexBuffer->GetResourceView(),
 														g_objTexture};
 
-	static ID3D11UnorderedAccessView* uavrays[]			= { g_rayBuffer->GetUnorderedAccessView() };
+	static ID3D11UnorderedAccessView* uavrays[]			= { g_rayBuffer->GetUnorderedAccessView(),
+														g_hitDataBuffer->GetUnorderedAccessView(),
+														g_BackBufferUAV,
+														g_accColorBuffer->GetUnorderedAccessView()};
 	static ID3D11UnorderedAccessView* uav[]				= { g_BackBufferUAV,
 														g_accColorBuffer->GetUnorderedAccessView()};
 	static ID3D11UnorderedAccessView* intersectionBuffer[] = {	g_rayBuffer->GetUnorderedAccessView(),
@@ -391,7 +394,7 @@ HRESULT Render(float deltaTime, ShaderDefinitions &shader)
 														g_materialBuffer->GetResourceView()};
 
 	// ### PRIMARY RAY ###
-	g_DeviceContext->CSSetUnorderedAccessViews(0, 1, uavrays, NULL);
+	g_DeviceContext->CSSetUnorderedAccessViews(0, 4, uavrays, NULL);
 
 	shader.CS_ComputeRay->Set();
 	g_Timer->Start();		
@@ -399,7 +402,7 @@ HRESULT Render(float deltaTime, ShaderDefinitions &shader)
 	g_Timer->Stop();
 	shader.CS_ComputeRay->Unset();
 	////Clear used resources
-	g_DeviceContext->CSSetUnorderedAccessViews(0, 1, clearuav, NULL);
+	g_DeviceContext->CSSetUnorderedAccessViews(0, 4, clearuav, NULL);
 	// ### PRIMARY RAY END ###
 	shader.avgCompRay = (shader.avgCompRay + (float)g_Timer->GetTime()) * 0.5f;
 
@@ -440,17 +443,17 @@ HRESULT Render(float deltaTime, ShaderDefinitions &shader)
 		// ### ColorStage END ###
 		shader.avgColor = (shader.avgColor + (float)g_Timer->GetTime()) * 0.5f;
 
-		if(shader.firstPass)
-		{
-			shader.firstPass = false;
-			g_cData.firstPass = shader.firstPass;
-			g_DeviceContext->UpdateSubresource(g_cBuffer->getBufferPointer(), 0, NULL, &g_cData, 0, 0);
-		}
+		//if(shader.firstPass)
+		//{
+		//	shader.firstPass = false;
+		//	g_cData.firstPass = shader.firstPass;
+		//	g_DeviceContext->UpdateSubresource(g_cBuffer->getBufferPointer(), 0, NULL, &g_cData, 0, 0);
+		//}
 	}
-
-	shader.firstPass = true;
-	g_cData.firstPass = shader.firstPass;
-	g_DeviceContext->UpdateSubresource(g_cBuffer->getBufferPointer(), 0, NULL, &g_cData, 0, 0);
+	/*
+	 shader.firstPass = true;
+	 g_cData.firstPass = shader.firstPass;
+	 g_DeviceContext->UpdateSubresource(g_cBuffer->getBufferPointer(), 0, NULL, &g_cData, 0, 0);*/
 			
 
 
@@ -531,7 +534,7 @@ int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 		}
 	}
 
-	ofstream myfile("test.txt");
+	ofstream myfile("tests.txt");
 	if(myfile.is_open())
 	{
 		myfile << "TESTS " << RESOLUTION << "x" << RESOLUTION << "\n";
@@ -660,7 +663,7 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
 		switch(wParam)
 		{
 			case VK_ESCAPE:
-				g_ShouldQuit = true;//PostQuitMessage(0);
+				PostQuitMessage(0);//g_ShouldQuit = true;//
 				break;
 		}
 		break;

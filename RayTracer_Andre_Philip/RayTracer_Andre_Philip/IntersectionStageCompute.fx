@@ -37,13 +37,13 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 	h.r.direction = r.direction;
 	h.r.power = r.power;
 	h.reflection = 0.0f;
-	h.id = -1;
+	h.id = OutputHitdata[index].id;
 	h.materialID = -1;
 
-	if(cd.firstPass)// && OutputHitdata[index].id != -1)		
-		h.id = -1;
-	else
-		h.id = OutputHitdata[index].id;
+	//if(cd.firstPass)// && OutputHitdata[index].id != -1)		
+	//	h.id = -1;
+	//else
+	//	h.id = OutputHitdata[index].id;
 	
 	float deltaRange = 0.0001f;
 	float returnT = -1.0f;

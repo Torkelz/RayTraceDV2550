@@ -38,7 +38,6 @@ struct cData
 	int			screenHeight;
 	float		fovX;
 	float		fovY;
-	bool		firstPass;
 	int			nrVertices;
 };
 

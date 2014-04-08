@@ -35,102 +35,99 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 	s.reflection = 1.f;
 
 
-	if(cd.firstPass)
-		accOutput[index] = float4(0,0,0,0);
-
 	if(h.id == -1)
 	{
 		output[ThreadID.xy] = float4(0,0,0,1);
+		return;
 	}
-	else
-	{
-		float4 t = float4(0, 0, 0, 0);
-		float4 color = float4(0,0,0,0);
-		Ray L;// Tänka på att inte skriva till texturen sen!!!! utan att eventuellt kolla om de ska göras.
-		L.origin = h.r.origin + (h.r.direction *h.distance);
-		float shadowh;
+
+	float4 t = float4(0, 0, 0, 0);
+	float4 color = float4(0,0,0,0);
+	Ray L;// Tänka på att inte skriva till texturen sen!!!! utan att eventuellt kolla om de ska göras.
+	L.origin = h.r.origin + (h.r.direction *h.distance);
+	float shadowh;
 		
-		float deltaRange = 0.001f;
-		float returnT = 0.0f;
-		float4 returnT4 = float4(0,0,0,0);
-		//float hubba = 0;//   ## THE BEST VARIABLE IN THE WORLD!!!!!!
-		//[unroll] //IF FPS PROBLEM REMOVE THIS
-		//float angle = 0.0f;
-		int numV = cd.nrVertices;
-		float4x4 scale = cd.scale;
-		float lightDistance;
-		int increasingID = 0;
-		for(int i = 0; i < LIGHTS;i++)
+	float deltaRange = 0.001f;
+	float returnT = 0.0f;
+	float4 returnT4 = float4(0,0,0,0);
+	//float hubba = 0;//   ## THE BEST VARIABLE IN THE WORLD!!!!!!
+	//[unroll] //IF FPS PROBLEM REMOVE THIS
+	//float angle = 0.0f;
+	int numV = cd.nrVertices;
+	float4x4 scale = cd.scale;
+	float lightDistance;
+	int increasingID = 0;
+	for(int i = 0; i < LIGHTS;i++)
+	{
+		increasingID = 0;
+		//NULLIFY
+		t = float4(0, 0, 0, 0);			
+		shadowh= -1.f;
+		//RECALCULATE
+		lightDistance = length(pl[i].position.xyz - L.origin);
+		L.direction = normalize(pl[i].position.xyz - L.origin);
+		//if(h.id != s.id)
+		if(h.id != increasingID)
 		{
-			increasingID = 0;
-			//NULLIFY
-			t = float4(0, 0, 0, 0);			
-			shadowh= -1.f;
-			//RECALCULATE
-			lightDistance = length(pl[i].position.xyz - L.origin);
-			L.direction = normalize(pl[i].position.xyz - L.origin);
-			//if(h.id != s.id)
+			returnT = RaySphereIntersect(L, s);
+			if(returnT < shadowh || shadowh < 0.0f && returnT > deltaRange)
+			{
+				shadowh = returnT;
+			}
+		}
+		increasingID++;
+			
+
+		for(int j = 0; j < 36; j+=3)
+		{
+			//if(h.id != Triangles[j].id)
 			if(h.id != increasingID)
 			{
-				returnT = RaySphereIntersect(L, s);
-				if(returnT < shadowh || shadowh < 0.0f && returnT > deltaRange)
+				returnT4 = RayTriangleIntersection(L,Triangles[j].position, Triangles[j+1].position, Triangles[j+2].position);
+				returnT = returnT4.x;
+				if(returnT < shadowh && returnT > deltaRange || shadowh < 0.0f && returnT > deltaRange)
 				{
 					shadowh = returnT;
 				}
 			}
 			increasingID++;
-			
-
-			for(int j = 0; j < 36; j+=3)
-			{
-				//if(h.id != Triangles[j].id)
-				if(h.id != increasingID)
-				{
-					returnT4 = RayTriangleIntersection(L,Triangles[j].position, Triangles[j+1].position, Triangles[j+2].position);
-					returnT = returnT4.x;
-					if(returnT < shadowh && returnT > deltaRange || shadowh < 0.0f && returnT > deltaRange)
-					{
-						shadowh = returnT;
-					}
-				}
-				increasingID++;
-			}
-			for(j = 0; j < numV; j+=3)
-			{
-				//if(h.id != Triangles[i].id)
-				if( h.id != increasingID)
-				{
-					returnT4 = RayTriangleIntersection(L,mul(float4(OBJ[j].position,1), scale).xyz, mul(float4(OBJ[j+1].position,1), scale).xyz, mul(float4(OBJ[j+2].position,1), scale).xyz);
-					returnT = returnT4.x;
-
-					if(returnT < shadowh && returnT > deltaRange || shadowh < 0.0f && returnT > deltaRange)
-					{
-						shadowh = returnT;
-						j = numV;
-					}
-				}
-				increasingID++;
-			}
-			
-			if(shadowh > deltaRange && shadowh < lightDistance)
-			{
-				t += 0.0f * float4(LightSourceCalc(L, h, pl[i], h.materialID),0.f);
-				//hubba += 0.5;
-			}
-			else
-			{
-				t += 1.0f * float4(LightSourceCalc(L, h, pl[i], h.materialID),0.f);
-				//hubba += 1.0f;
-			}
-			
-			color += (h.color ) * t;//* float4(0.1f,0.1f,0.1f,1)
 		}
-		//color /= hubba;
-		accOutput[index] += color * h.r.power;
-		
-		output[ThreadID.xy] = saturate(accOutput[index]);
-		//output[ThreadID.xy] = accOutput[index];
+		for(j = 0; j < numV; j+=3)
+		{
+			//if(h.id != Triangles[i].id)
+			if( h.id != increasingID)
+			{
+				returnT4 = RayTriangleIntersection(L,mul(float4(OBJ[j].position,1), scale).xyz, mul(float4(OBJ[j+1].position,1), scale).xyz, mul(float4(OBJ[j+2].position,1), scale).xyz);
+				returnT = returnT4.x;
+
+				if(returnT < shadowh && returnT > deltaRange || shadowh < 0.0f && returnT > deltaRange)
+				{
+					shadowh = returnT;
+					j = numV;
+				}
+			}
+			increasingID++;
+		}
+			
+		//SE ÖVER VARIABLEN "t" behövvs inte ?
+		if(shadowh > deltaRange && shadowh < lightDistance)
+		{
+			t += 0.0f * float4(LightSourceCalc(L, h, pl[i], h.materialID),0.f);
+			//hubba += 0.5;
+		}
+		else
+		{
+			t += 1.0f * float4(LightSourceCalc(L, h, pl[i], h.materialID),0.f);
+			//hubba += 1.0f;
+		}
+			
+		color += (h.color ) * t;//* float4(0.1f,0.1f,0.1f,1)
 	}
+	//color /= hubba;
+	accOutput[index] += color * h.r.power;
+		
+	output[ThreadID.xy] = saturate(accOutput[index]);
+	//output[ThreadID.xy] = accOutput[index];
 }
 
 float3 LightSourceCalc(Ray r, HitData hd, PointLight L, int materialID)
