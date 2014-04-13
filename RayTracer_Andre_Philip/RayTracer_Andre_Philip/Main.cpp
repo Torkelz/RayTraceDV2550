@@ -293,8 +293,15 @@ HRESULT Init()
 
 
 	OctTree tree;
+
+	//Creates the tree and removes unused nodes
 	tree.CreateTree( g_loader->getVertices().data(), g_loader->getVertices().size());
 
+	//Organize data for the shaders
+	std::vector<OBJVertex> vertices;
+	vertices.reserve(g_loader->getVertices().size());
+	std::vector<HLSLNode> nodes;
+	tree.OrganizeData(vertices, nodes, g_loader->getVertices().data());
 
 	//Primary rays
 	g_rayBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(Ray),g_Height*g_Width, true, true, NULL,true, "Structured Buffer:Rays");

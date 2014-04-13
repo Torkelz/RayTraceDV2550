@@ -12,6 +12,7 @@ struct OctNode
 {
 	D3DXVECTOR3 boundHigh;
 	D3DXVECTOR3 boundLow;
+	int id;
 
 	std::vector<OctNode*> nodes;
 	std::vector<D3DXVECTOR3> vertices;
@@ -21,6 +22,18 @@ struct Bounds
 	D3DXVECTOR3 boundHigh;
 	D3DXVECTOR3 boundLow;
 };
+struct HLSLNode
+{
+	D3DXVECTOR3 boundHigh;
+	D3DXVECTOR3 boundLow;
+
+	int parentId;
+	int nodes[8];
+
+	int startVertexLocation;
+	int nrVertices;
+};
+
 
 class OctTree
 {
@@ -30,6 +43,7 @@ public:
 
 	void CreateTree(OBJVertex* pdata, int numElements);
 	void TreeCleanup(OctNode* node);
+	void OrganizeData(std::vector<OBJVertex> &pVertices, std::vector<HLSLNode> &pNodes,  const OBJVertex* pdata);
 
 private:
 	void findBounds(OBJVertex* pdata, int numElements, D3DXVECTOR3 &boundHigh,D3DXVECTOR3 &boundLow);
@@ -39,6 +53,9 @@ private:
 	int getNrNodes(OctNode* node);
 	int getNrLeafNodes(OctNode* node);
 	std::vector<Bounds> calcSubBounds(D3DXVECTOR3 boundHigh, D3DXVECTOR3 boundLow);
+
+	void OrganizeDataTraverse(std::vector<OBJVertex> &pVertices, std::vector<HLSLNode> &pNodes, OctNode* node, const OBJVertex* pdata);
+	void assignIDs(OctNode* node, int &id);
 
 	OctNode* root;
 	int maxDepth;

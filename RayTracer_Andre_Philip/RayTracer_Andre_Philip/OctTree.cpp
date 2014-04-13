@@ -28,18 +28,23 @@ void OctTree::CreateTree(OBJVertex* pdata, int numelements)
 	}
 	int d = 0;
 	subdivideTree(root, d, pdata);
-	int j = getNrNodes(root);
+	//int j = getNrNodes(root);
 	
 
 	cleanEmptyNodes(root);
-	j = getNrNodes(root);
+	//j = getNrNodes(root);
 	OctNode* node = root;
 	for(int i = 0; i < maxDepth; i++)
 		TreeCleanup(node);
 
-	j = getNrNodes(root);
-	int ll = getNrLeafNodes(root);
-	int u = 0;
+	//j = getNrNodes(root);
+	//int ll = getNrLeafNodes(root);
+	//int u = 0;
+
+	OctNode *currNode = root;
+	int ids = 0;
+	currNode->id = ids;
+	assignIDs(currNode, ids);
 }
 
 void OctTree::TreeCleanup(OctNode* node)
@@ -54,6 +59,87 @@ void OctTree::TreeCleanup(OctNode* node)
 		TreeCleanup(node->nodes.at(i));
 	}
 }
+
+void OctTree::OrganizeData(std::vector<OBJVertex> &pVertices, std::vector<HLSLNode> &pNodes, const OBJVertex* pdata)
+{
+	OctNode *currNode = root;
+	HLSLNode hl;
+	hl.parentId = -1;
+	hl.boundHigh = currNode->boundHigh;
+	hl.boundLow = currNode->boundLow;
+	hl.nrVertices = currNode->vertices.size();
+	hl.startVertexLocation = 0;
+	if(hl.nrVertices > 0)
+	{
+		hl.startVertexLocation = pVertices.size();
+		for (int j = 0; j < hl.nrVertices; j++)
+		{
+			pVertices.push_back(pdata[(int)currNode->vertices.at(j).x]);
+			pVertices.push_back(pdata[(int)currNode->vertices.at(j).y]);
+			pVertices.push_back(pdata[(int)currNode->vertices.at(j).z]);
+		}
+	}
+	for(unsigned int h = 0; h < 8; h++)
+		hl.nodes[h] = -1;
+	for(unsigned int i = 0; i < currNode->nodes.size(); i++)
+		hl.nodes[i] = currNode->nodes.at(i)->id;
+	pNodes.push_back(hl);
+
+	OrganizeDataTraverse(pVertices,pNodes, currNode, pdata);
+}
+
+void OctTree::OrganizeDataTraverse(std::vector<OBJVertex> &pVertices, std::vector<HLSLNode> &pNodes, OctNode* node,  const OBJVertex* pdata)
+{
+	HLSLNode hlnode;
+	hlnode.parentId = node->id;
+	for(unsigned int h = 0; h < 8; h++)
+		hlnode.nodes[h] = -1;
+
+	for(unsigned int i = 0; i < node->nodes.size(); i++)
+	{
+		hlnode.boundHigh = node->nodes.at(i)->boundHigh;
+		hlnode.boundLow = node->nodes.at(i)->boundLow;
+
+		hlnode.nrVertices = node->nodes.at(i)->vertices.size();
+		hlnode.startVertexLocation = 0;
+		if(hlnode.nrVertices > 0)
+		{
+			hlnode.startVertexLocation = pVertices.size();
+			for (int j = 0; j < hlnode.nrVertices; j++)
+			{
+				pVertices.push_back(pdata[(int)node->nodes.at(i)->vertices.at(j).x]);
+				pVertices.push_back(pdata[(int)node->nodes.at(i)->vertices.at(j).y]);
+				pVertices.push_back(pdata[(int)node->nodes.at(i)->vertices.at(j).z]);
+			}
+		}
+
+		
+		for (unsigned int j = 0; j < node->nodes.at(i)->nodes.size(); j++)
+		{
+			hlnode.nodes[j] = node->nodes.at(i)->nodes.at(j)->id;
+		}
+		
+
+		pNodes.push_back(hlnode);
+	}
+	for(unsigned int i = 0; i < node->nodes.size(); i++)
+	{
+		OrganizeDataTraverse(pVertices,pNodes, node->nodes.at(i), pdata);
+	}
+}
+
+void OctTree::assignIDs(OctNode* node, int &id)
+{
+	for(unsigned int i = 0; i < node->nodes.size(); i++)
+	{
+		node->nodes.at(i)->id = ++id;
+	}
+	for(unsigned int i = 0; i < node->nodes.size(); i++)
+	{
+		assignIDs(node->nodes.at(i), id);
+	}
+}
+
 int OctTree::getNrNodes(OctNode* node)
 {
 	int k = 0;
