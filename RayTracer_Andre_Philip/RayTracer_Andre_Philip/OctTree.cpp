@@ -102,13 +102,13 @@ void OctTree::subdivideTree(OctNode* node, int depth, OBJVertex* pdata)
 		D3DXVECTOR3 pos;
 		bool intersect = false;
 		for(unsigned int i = 0; i < node->vertices.size();i++)
-		{
-			for(int k = 0; k < 3; k++)
+		{			
+			for(int j = 0; j < 8; j++)
 			{
-				//pos = node->vertices.at(i);
-				pos = pdata[getDXVecElement(k,&node->vertices.at(i))].position;
-				for(int j = 0; j < 8; j++)
+				for(int k = 0; k < 3; k++)
 				{
+					//pos = node->vertices.at(i);
+					pos = pdata[getDXVecElement(k,&node->vertices.at(i))].position;
 					if((pos.x >= b.at(j).boundLow.x &&
 						pos.y >= b.at(j).boundLow.y &&
 						pos.z >= b.at(j).boundLow.z) &&
@@ -120,6 +120,7 @@ void OctTree::subdivideTree(OctNode* node, int depth, OBJVertex* pdata)
 						for(int k = 0; k < 3;k++)*/
 							//node->nodes.at(j)->vertices.push_back(node->vertices.at(temp+k));
 						node->nodes.at(j)->vertices.push_back(node->vertices.at(i));
+						break;
 					}
 				}
 			}
