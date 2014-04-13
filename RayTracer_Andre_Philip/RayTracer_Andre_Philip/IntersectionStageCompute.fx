@@ -20,7 +20,7 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 {
 	int index = ThreadID.x+(ThreadID.y*cd.screenWidth);
 	int increasingID = 0;
-
+	//Creates a sphere
 	Sphere s;
 	s.position = float3(-13,10,0);
 	s.radius = 2.f;
@@ -29,6 +29,7 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 
 	Ray r = IO_Rays[index];
 
+	//Sets default HitData values
 	HitData h;
 	h.color = float4(0,0,0,1);
 	h.distance = -1.0f;
@@ -40,17 +41,11 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 	h.id = OutputHitdata[index].id;
 	h.materialID = -1;
 
-	//if(cd.firstPass)// && OutputHitdata[index].id != -1)		
-	//	h.id = -1;
-	//else
-	//	h.id = OutputHitdata[index].id;
-	
 	float deltaRange = 0.0001f;
 	float returnT = -1.0f;
 	int tempID = -1;
 
-	//if(h.id != s.id)
-	
+	//Sphere collision
 	if( h.id != increasingID)
 	{
 		returnT = RaySphereIntersect(r, s);
@@ -66,6 +61,7 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 	}
 	increasingID++;
 
+	//Box collision
 	float4 returnT4 = float4(0,0,0,0);
 	for(int i = 0; i < 36; i+=3)
 	{
@@ -90,7 +86,7 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 	int numV = cd.nrVertices;
 	float4x4 scale = cd.scale;
 	float2 uvCoord ;
-			
+	//Triangle collisions		
 	for(i = 0; i < numV; i+=3)
 	{
 		//if(h.id != Triangles[i].id)
@@ -115,15 +111,15 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 	}
 
 
-	if(tempID != -1)
-		h.id = tempID;
+	//if(tempID != -1)
+	//	h.id = tempID;
 
 	//h.color = float4(1,0,0,1);
 
-	OutputHitdata[index] = h;
 
-	if(h.id != -1)
+	if(tempID != -1)//h.id != -1)
 	{
+		h.id = tempID;
 		r.origin = r.origin + r.direction * h.distance;
 		r.direction = reflect(r.direction, h.normal);
 		if(r.power != 0.0f)
@@ -131,6 +127,7 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 		//r.id = h.id;
 		IO_Rays[index] = r;
 	} 
-	
+
+	OutputHitdata[index] = h;
 }
 #endif // PRIMARYRAYCOMPUTE
