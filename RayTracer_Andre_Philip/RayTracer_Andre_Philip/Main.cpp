@@ -14,8 +14,9 @@
 #include "D3D11Timer.h"
 #include "Main.h"
 #include "OBJLoader.h"
+#include "OctTree.h"
 
-#define TEST
+//#define TEST
 #define RESOLUTION 400
 
 //--------------------------------------------------------------------------------------
@@ -260,7 +261,6 @@ HRESULT Init()
 	g_cData.viewMatInv = viewInv;
 	g_cData.screenHeight = g_Height;
 	g_cData.screenWidth = g_Width;
-	g_cData.firstPass = true;
 
 	BufferInitDesc desc;
 	desc.initData = &g_cData;
@@ -290,6 +290,11 @@ HRESULT Init()
 	g_cData.nrVertices = g_loader->getVertices().size();
 	D3DXMatrixScaling(&g_cData.scale, 1.0f,1.0f,1.0f);
 	g_DeviceContext->UpdateSubresource(g_cBuffer->getBufferPointer(), 0, NULL, &g_cData, 0, 0);
+
+
+	OctTree tree;
+	tree.CreateTree( g_loader->getVertices().data(), g_loader->getVertices().size());
+
 
 	//Primary rays
 	g_rayBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(Ray),g_Height*g_Width, true, true, NULL,true, "Structured Buffer:Rays");
