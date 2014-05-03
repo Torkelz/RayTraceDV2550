@@ -92,6 +92,9 @@ void OctTree::OrganizeDataTraverse(std::vector<OBJVertex> &pVertices, std::vecto
 {
 	HLSLNode hlnode;
 	hlnode.parentId = node->id;
+	hlnode.nrVertices = 0;
+	hlnode.startVertexLocation = 0;
+
 	for(unsigned int h = 0; h < 8; h++)
 		hlnode.nodes[h] = -1;
 
@@ -239,30 +242,51 @@ std::vector<Bounds> OctTree::calcSubBounds(D3DXVECTOR3 boundHigh, D3DXVECTOR3 bo
  	// |----||----|
 	//boundLow - lower values
 	//LowerPart
-	bound.boundHigh = D3DXVECTOR3(center.x,center.y,boundHigh.z);
-	bound.boundLow = D3DXVECTOR3(boundLow.x,boundLow.y,center.z);
-	b.push_back(bound);
 	float dx = boundHigh.x-center.x;
-	bound.boundHigh.x	+= dx;
-	bound.boundLow.x	+= dx;
-	b.push_back(bound);
 	float dz = boundHigh.z-center.z;
-	bound.boundHigh.z	-= dz;
-	bound.boundLow.z	-= dz;
+	D3DXVECTOR3 lowToCenter = center - boundLow;
+
+	bound.boundLow = boundLow;
+	bound.boundHigh = center;
 	b.push_back(bound);
-	float x = boundHigh.x-boundLow.x;
-	bound.boundHigh.x	-= x;
-	bound.boundLow.x	-= x;
+
+
+	bound.boundLow = D3DXVECTOR3(boundLow.x + lowToCenter.x,boundLow.y,boundLow.z);
+	bound.boundHigh = bound.boundLow + lowToCenter;
 	b.push_back(bound);
+
+	bound.boundLow = D3DXVECTOR3(boundLow.x,boundLow.y,boundLow.z  + lowToCenter.z);
+	bound.boundHigh = bound.boundLow + lowToCenter;
+	b.push_back(bound);
+
+	bound.boundLow = D3DXVECTOR3(boundLow.x  + lowToCenter.x,boundLow.y,boundLow.z  + lowToCenter.z);
+	bound.boundHigh = bound.boundLow + lowToCenter;
+	b.push_back(bound);
+
+	//bound.boundHigh = D3DXVECTOR3(center.x,center.y,boundHigh.z);
+	//bound.boundLow = D3DXVECTOR3(boundLow.x,boundLow.y,center.z);
+	//b.push_back(bound);
+	//float dx = boundHigh.x-center.x;
+	//bound.boundHigh.x	+= dx;
+	//bound.boundLow.x	+= dx;
+	//b.push_back(bound);
+	//float dz = boundHigh.z-center.z;
+	//bound.boundHigh.z	-= dz;
+	//bound.boundLow.z	-= dz;
+	//b.push_back(bound);
+	//float x = boundHigh.x-boundLow.x;
+	//bound.boundHigh.x	-= x;
+	//bound.boundLow.x	-= x;
+	//b.push_back(bound);
 
 
 	//Upper
-	float changeY = boundHigh.y-center.y;
+	//float changeY = boundHigh.y-center.y;
 	for(int i = 0; i < 4;i++)
 	{
 		Bounds bs = b.at(i);
-		bs.boundHigh.y += changeY;
-		bs.boundLow.y  += changeY;
+		bs.boundHigh.y += lowToCenter.y;
+		bs.boundLow.y  += lowToCenter.y;
 		b.push_back(bs);
 	}
 

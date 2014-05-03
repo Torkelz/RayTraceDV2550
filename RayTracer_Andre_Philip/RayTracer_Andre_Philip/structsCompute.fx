@@ -104,4 +104,16 @@ struct OBJMaterial
 	float Ni;
 };
 
+struct HLSLNode
+{
+	float3 boundHigh;
+	float3 boundLow;
+
+	int parentId;
+	int nodes[8];
+
+	int startVertexLocation;
+	int nrVertices;
+};
+
 #endif // STRUCTSCOMPUTE

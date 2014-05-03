@@ -22,17 +22,7 @@ struct Bounds
 	D3DXVECTOR3 boundHigh;
 	D3DXVECTOR3 boundLow;
 };
-struct HLSLNode
-{
-	D3DXVECTOR3 boundHigh;
-	D3DXVECTOR3 boundLow;
 
-	int parentId;
-	int nodes[8];
-
-	int startVertexLocation;
-	int nrVertices;
-};
 
 
 class OctTree
