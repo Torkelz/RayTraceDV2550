@@ -44,6 +44,9 @@ ComputeBuffer*				g_rayBuffer				= NULL;
 ComputeBuffer*				g_hitDataBuffer			= NULL;
 ComputeBuffer*				g_accColorBuffer		= NULL;
 ComputeBuffer*				g_materialBuffer		= NULL;
+ComputeBuffer*				g_OctTreeBuffer			= NULL;
+ComputeBuffer*				g_OctTriangleBuffer		= NULL;
+
 
 D3D11Timer*					g_Timer					= NULL;
 
@@ -300,8 +303,14 @@ HRESULT Init()
 	//Organize data for the shaders
 	std::vector<OBJVertex> vertices;
 	vertices.reserve(g_loader->getVertices().size());
-	std::vector<HLSLNode> nodes;
-	tree.OrganizeData(vertices, nodes, g_loader->getVertices().data());
+	std::vector<HLSLNode> HLnodes;
+	tree.OrganizeData(vertices, HLnodes, g_loader->getVertices().data());
+
+
+	g_OctTreeBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(HLSLNode), HLnodes.size(), true, false,HLnodes.data(),false, "Structured Buffer:OctTreeBuffer");
+	g_OctTriangleBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(OBJVertex),vertices.size(), true, false, vertices.data(),false, "Structured Buffer:OctVertices");
+
+
 
 	//Primary rays
 	g_rayBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(Ray),g_Height*g_Width, true, true, NULL,true, "Structured Buffer:Rays");
@@ -387,7 +396,9 @@ HRESULT Render(float deltaTime, ShaderDefinitions &shader)
 	static ID3D11ShaderResourceView* bufftri[]				= { g_ObjectBuffer->GetResourceView(),
 														g_OBJBuffer->GetResourceView(),
 														g_indexBuffer->GetResourceView(),
-														g_objTexture};
+														g_objTexture,
+														g_OctTreeBuffer->GetResourceView(),
+														g_OctTriangleBuffer->GetResourceView()};
 
 	static ID3D11UnorderedAccessView* uavrays[]			= { g_rayBuffer->GetUnorderedAccessView(),
 														g_hitDataBuffer->GetUnorderedAccessView(),
@@ -422,7 +433,7 @@ HRESULT Render(float deltaTime, ShaderDefinitions &shader)
 	for(unsigned int i = 0; i <= bounces; i++)
 	{
 		// ### IntersectionStage ###		
-		g_DeviceContext->CSSetShaderResources(0,4,bufftri);
+		g_DeviceContext->CSSetShaderResources(0,6,bufftri);
 		g_DeviceContext->CSSetUnorderedAccessViews(0, 2, intersectionBuffer, NULL);
 		shader.CS_IntersectionStage->Set();
 		g_Timer->Start();
@@ -431,7 +442,7 @@ HRESULT Render(float deltaTime, ShaderDefinitions &shader)
 		shader.CS_IntersectionStage->Unset();
 		//Clear used resources
 		g_DeviceContext->CSSetUnorderedAccessViews(0, 2, clearuav, NULL);
-		g_DeviceContext->CSSetShaderResources(0,4,clearsrv);
+		g_DeviceContext->CSSetShaderResources(0,6,clearsrv);
 		// ### IntersectionStage END ###
 		shader.avgIntersect = (shader.avgIntersect + (float)g_Timer->GetTime()) * 0.5f;
 		// ### ColorStage ###
