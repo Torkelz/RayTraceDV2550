@@ -394,11 +394,11 @@ HRESULT Render(float deltaTime, ShaderDefinitions &shader)
 	static ID3D11ShaderResourceView* clearsrv[]			= { 0,0,0,0,0,0,0 };
 
 	static ID3D11ShaderResourceView* bufftri[]				= { g_ObjectBuffer->GetResourceView(),
-														g_OBJBuffer->GetResourceView(),
-														g_indexBuffer->GetResourceView(),
-														g_objTexture,
+														//g_OBJBuffer->GetResourceView(),
+														//g_indexBuffer->GetResourceView(),
 														g_OctTreeBuffer->GetResourceView(),
-														g_OctTriangleBuffer->GetResourceView()};
+														g_OctTriangleBuffer->GetResourceView(),
+														g_objTexture};
 
 	static ID3D11UnorderedAccessView* uavrays[]			= { g_rayBuffer->GetUnorderedAccessView(),
 														g_hitDataBuffer->GetUnorderedAccessView(),
@@ -433,7 +433,7 @@ HRESULT Render(float deltaTime, ShaderDefinitions &shader)
 	for(unsigned int i = 0; i <= bounces; i++)
 	{
 		// ### IntersectionStage ###		
-		g_DeviceContext->CSSetShaderResources(0,6,bufftri);
+		g_DeviceContext->CSSetShaderResources(0,4,bufftri);
 		g_DeviceContext->CSSetUnorderedAccessViews(0, 2, intersectionBuffer, NULL);
 		shader.CS_IntersectionStage->Set();
 		g_Timer->Start();
@@ -442,7 +442,7 @@ HRESULT Render(float deltaTime, ShaderDefinitions &shader)
 		shader.CS_IntersectionStage->Unset();
 		//Clear used resources
 		g_DeviceContext->CSSetUnorderedAccessViews(0, 2, clearuav, NULL);
-		g_DeviceContext->CSSetShaderResources(0,6,clearsrv);
+		g_DeviceContext->CSSetShaderResources(0,4,clearsrv);
 		// ### IntersectionStage END ###
 		shader.avgIntersect = (shader.avgIntersect + (float)g_Timer->GetTime()) * 0.5f;
 		// ### ColorStage ###
@@ -557,7 +557,7 @@ int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 		}
 	}
 
-	ofstream myfile("tests.txt");
+	ofstream myfile("testsOct.txt");
 	if(myfile.is_open())
 	{
 		myfile << "TESTS " << RESOLUTION << "x" << RESOLUTION << "\n";
