@@ -122,7 +122,7 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 				{
 					int vertexIndex = startTri + (tri * 3);
 					//Avoid selfcollision
-					//if(triangleId == tri) continue;
+					if(h.id == vertexIndex) continue;
 
 					returnT4 = RayTriangleIntersection(r,mul(float4(OctTreeVertices[vertexIndex].position,1), scale).xyz, 
 						mul(float4(OctTreeVertices[vertexIndex + 1].position,1), scale).xyz, 

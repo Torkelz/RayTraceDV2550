@@ -12,8 +12,10 @@ StructuredBuffer<Vertex> Triangles : register(t0);
 StructuredBuffer<HitData> InputHitdata : register(t1);
 StructuredBuffer<PointLight> pl : register(t2);
 
-StructuredBuffer<OBJVertex> OBJ : register(t3);
-StructuredBuffer<DWORD> Indices : register(t4);
+//StructuredBuffer<OBJVertex> OBJ : register(t3);
+//StructuredBuffer<DWORD> Indices : register(t4);
+StructuredBuffer<HLSLNode> OctTree : register(t3);
+StructuredBuffer<OBJVertex> OctTreeVertices : register(t4);
 StructuredBuffer<OBJMaterial> material : register(t5);
 
 
@@ -24,6 +26,10 @@ RWStructuredBuffer<float4> accOutput : register(u1);
 void main( uint3 ThreadID : SV_DispatchThreadID )
 {
 	int index = ThreadID.x+(ThreadID.y*cd.screenWidth);
+
+	uint dimension;
+	uint stride;
+	OctTreeVertices.GetDimensions(dimension, stride);
 	//int increasingID = 0;
 
 	HitData h = InputHitdata[index];
@@ -34,13 +40,12 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 	s.id = 0;
 	s.reflection = 1.f;
 
-
 	if(h.id == -1)
 	{
 		output[ThreadID.xy] = float4(0,0,0,1);
 		return;
 	}
-
+	
 	float4 t = float4(0, 0, 0, 0);
 	float4 color = float4(0,0,0,0);
 	Ray L;// Tänka på att inte skriva till texturen sen!!!! utan att eventuellt kolla om de ska göras.
@@ -56,7 +61,7 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 	int numV = cd.nrVertices;
 	float4x4 scale = cd.scale;
 	float lightDistance;
-	int increasingID = 0;
+	int increasingID = dimension;
 	for(int i = 0; i < LIGHTS;i++)
 	{
 		increasingID = 0;
@@ -77,7 +82,6 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 		}
 		increasingID++;
 			
-
 		for(int j = 0; j < 36; j+=3)
 		{
 			//if(h.id != Triangles[j].id)
@@ -92,21 +96,54 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 			}
 			increasingID++;
 		}
-		for(j = 0; j < numV; j+=3)
-		{
-			//if(h.id != Triangles[i].id)
-			if( h.id != increasingID)
-			{
-				returnT4 = RayTriangleIntersection(L,mul(float4(OBJ[j].position,1), scale).xyz, mul(float4(OBJ[j+1].position,1), scale).xyz, mul(float4(OBJ[j+2].position,1), scale).xyz);
-				returnT = returnT4.x;
 
-				if(returnT < shadowh && returnT > deltaRange || shadowh < 0.0f && returnT > deltaRange)
+		if(RayAABB(L,  OctTree[0].boundLow, OctTree[0].boundHigh))
+		{
+			int stackIndex = 0;
+			volatile HLSLNode stack[20];
+
+			stack[++stackIndex] = OctTree[0];
+			volatile HLSLNode node;
+			
+			[allow_uav_condition]
+			while(stackIndex > 0)
+			{
+				node = stack[stackIndex--];
+
+				if(node.nrVertices > 0)
 				{
-					shadowh = returnT;
-					j = numV;
+					int startTri = node.startVertexLocation;
+					[allow_uav_condition]
+					for(int tri = 0; tri < node.nrVertices; tri++)
+					{
+						int vertexIndex = startTri + (tri * 3);
+						//Avoid selfcollision
+						if(h.id == vertexIndex) continue;
+
+						returnT4 = RayTriangleIntersection(L,mul(float4(OctTreeVertices[vertexIndex].position,1), scale).xyz, 
+							mul(float4(OctTreeVertices[vertexIndex + 1].position,1), scale).xyz, 
+							mul(float4(OctTreeVertices[vertexIndex + 2].position,1), scale).xyz);
+
+						returnT = returnT4.x;
+
+						if(returnT < shadowh && returnT > deltaRange || shadowh < 0.0f && returnT > deltaRange)
+						{
+							shadowh = returnT;
+						}
+					}
+				}
+				//[allow_uav_condition]
+				for(int i = 0; i < 8; i++)
+				{
+					if(node.nodes[i] > 0)
+					{
+						if(RayAABB(L,  OctTree[node.nodes[i]].boundLow, OctTree[node.nodes[i]].boundHigh))
+						{
+							stack[++stackIndex] = OctTree[node.nodes[i]];
+						}
+					}
 				}
 			}
-			increasingID++;
 		}
 			
 		//SE ÖVER VARIABLEN "t" behövvs inte ?
@@ -127,7 +164,6 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 	accOutput[index] += color * h.r.power;
 		
 	output[ThreadID.xy] = saturate(accOutput[index]);
-	//output[ThreadID.xy] = accOutput[index];
 }
 
 float3 LightSourceCalc(Ray r, HitData hd, PointLight L, int materialID)
