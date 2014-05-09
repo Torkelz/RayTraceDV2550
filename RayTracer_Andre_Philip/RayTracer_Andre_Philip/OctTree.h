@@ -50,6 +50,8 @@ private:
 	OctNode* root;
 	int maxDepth;
 
+	bool pointAABB(D3DXVECTOR3 p, D3DXVECTOR3 low, D3DXVECTOR3 high);
+
 };
 
 #endif

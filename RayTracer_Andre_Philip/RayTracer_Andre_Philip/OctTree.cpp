@@ -4,7 +4,7 @@
 OctTree::OctTree(void)
 {
 	root = NULL;
-	maxDepth = 3;
+	maxDepth = 1;
 }
 
 
@@ -196,21 +196,29 @@ void OctTree::subdivideTree(OctNode* node, int depth, OBJVertex* pdata)
 			{
 				for(int k = 0; k < 3; k++)
 				{
-					//pos = node->vertices.at(i);
-					pos = pdata[getDXVecElement(k,&node->vertices.at(i))].position;
-					if((pos.x >= b.at(j).boundLow.x &&
-						pos.y >= b.at(j).boundLow.y &&
-						pos.z >= b.at(j).boundLow.z) &&
-						(pos.x <= b.at(j).boundHigh.x &&
-						pos.y <= b.at(j).boundHigh.y &&
-						pos.z <= b.at(j).boundHigh.z))
+					if(pointAABB(pdata[getDXVecElement(k,&node->vertices.at(i))].position,
+						b.at(j).boundLow, b.at(j).boundHigh ))
 					{
-						/*int temp = i-(i%3);
-						for(int k = 0; k < 3;k++)*/
-							//node->nodes.at(j)->vertices.push_back(node->vertices.at(temp+k));
 						node->nodes.at(j)->vertices.push_back(node->vertices.at(i));
 						break;
 					}
+
+
+					////pos = node->vertices.at(i);
+					//pos = pdata[getDXVecElement(k,&node->vertices.at(i))].position;
+					//if((pos.x >= b.at(j).boundLow.x &&
+					//	pos.y >= b.at(j).boundLow.y &&
+					//	pos.z >= b.at(j).boundLow.z) &&
+					//	(pos.x <= b.at(j).boundHigh.x &&
+					//	pos.y <= b.at(j).boundHigh.y &&
+					//	pos.z <= b.at(j).boundHigh.z))
+					//{
+					//	/*int temp = i-(i%3);
+					//	for(int k = 0; k < 3;k++)*/
+					//		//node->nodes.at(j)->vertices.push_back(node->vertices.at(temp+k));
+					//	node->nodes.at(j)->vertices.push_back(node->vertices.at(i));
+					//	break;
+					//}
 				}
 			}
 		}
@@ -316,4 +324,15 @@ int OctTree::getDXVecElement( int p, D3DXVECTOR3* d )
 	case 2:
 		return (int)d->z;
 	}
+}
+
+bool OctTree::pointAABB( D3DXVECTOR3 p, D3DXVECTOR3 low, D3DXVECTOR3 high )
+{
+	if (p.x>high.x) return false;
+	if (p.x<low.x) return false;
+	if (p.y>high.y) return false;
+	if (p.y<low.y) return false;
+	if (p.z>high.z) return false;
+	if (p.z<low.z) return false;
+	return true;
 }
