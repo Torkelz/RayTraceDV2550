@@ -16,7 +16,7 @@
 #include "OBJLoader.h"
 #include "OctTree.h"
 
-//#define TEST
+#define TEST
 #define RESOLUTION 400
 
 //--------------------------------------------------------------------------------------
@@ -412,8 +412,10 @@ HRESULT Render(float deltaTime, ShaderDefinitions &shader)
 	static ID3D11ShaderResourceView* colorBuffer[]			= {	g_ObjectBuffer->GetResourceView(),
 														g_hitDataBuffer->GetResourceView(),
 														g_lightBuffer->GetResourceView(),
-														g_OBJBuffer->GetResourceView(),
-														g_indexBuffer->GetResourceView(),
+														g_OctTreeBuffer->GetResourceView(),
+														g_OctTriangleBuffer->GetResourceView(),
+														/*g_OBJBuffer->GetResourceView(),
+														g_indexBuffer->GetResourceView(),*/
 														g_materialBuffer->GetResourceView()};
 
 	// ### PRIMARY RAY ###
@@ -557,7 +559,7 @@ int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 		}
 	}
 
-	ofstream myfile("testsOct.txt");
+	ofstream myfile("testsOctIncColor.txt");
 	if(myfile.is_open())
 	{
 		myfile << "TESTS " << RESOLUTION << "x" << RESOLUTION << "\n";
