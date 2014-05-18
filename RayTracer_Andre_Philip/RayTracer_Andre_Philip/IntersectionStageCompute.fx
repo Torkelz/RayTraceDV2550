@@ -6,21 +6,14 @@
 #include "IntersectionCompute.fx"
 
 cbuffer cBufferdata : register(b0){cData cd;};
+
 StructuredBuffer<Vertex> Triangles : register(t0);
-//StructuredBuffer<OBJVertex> OBJ : register(t1);
-//StructuredBuffer<DWORD> Indices : register(t2);
 StructuredBuffer<HLSLNode> OctTree : register(t1);
 StructuredBuffer<OBJVertex> OctTreeVertices : register(t2);
 Texture2D objtexture : register(t3);
 
-
 RWStructuredBuffer<Ray> IO_Rays : register(u0);
 RWStructuredBuffer<HitData> OutputHitdata : register(u1);
-
-
-//void recursiveoctTraversal(Ray r, int currentNode, float4 returnT, int triangleIndex);
-
-#define DELTARANGE 0.0001f
 
 [numthreads(noThreadsX, noThreadsY, noThreadsZ)]
 void main( uint3 ThreadID : SV_DispatchThreadID )
@@ -55,7 +48,7 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 
 	const float deltaRange = 0.0001f;
 	volatile float returnT = -1.0f;
-	int tempID = -1;
+	volatile int tempID = -1;
 
 	//Sphere collision
 	if( h.id != increasingID)
@@ -65,7 +58,6 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 		{
 			h.distance = returnT;
 			h.color = s.color;
-			//tempID = s.id;
 			tempID = increasingID;
 			h.reflection = s.reflection;
 			h.normal = normalize(r.origin + returnT*r.direction - s.position);
@@ -77,7 +69,6 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 	volatile float4 returnT4 = float4(0,0,0,0);
 	for(int i = 0; i < 36; i+=3)
 	{
-		//if(h.id != Triangles[i].id)
 		if( h.id != increasingID)
 		{
 			returnT4 = RayTriangleIntersection(r,Triangles[i].position, Triangles[i+1].position, Triangles[i+2].position);
@@ -86,7 +77,6 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 			{
 				h.distance = returnT;
 				h.color = Triangles[i].color;
-				//tempID = Triangles[i].id;
 				tempID = increasingID;
 				h.reflection = Triangles[i].reflection;
 				h.normal = normalize(cross(Triangles[i+1].position-Triangles[i].position,Triangles[i+2].position-Triangles[i].position));
@@ -97,6 +87,7 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 
 	float4x4 scale = cd.scale;
 	
+	//Check if root in octTree is hit
 	if(RayAABB(r,  OctTree[0].boundLow, OctTree[0].boundHigh))
 	{
 		int stackIndex = 0;
@@ -109,6 +100,7 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 		int finalTriangle = -1;
 		float4 finalTriangleData;
 
+		//depth-first search
 		[allow_uav_condition]
 		while(stackIndex > 0)
 		{
@@ -151,6 +143,7 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 			}
 		}
 
+		//If a triangle was intersected set hitdata
 		if(finalTriangle >= 0)
 		{
 			float2 uvCoord = finalTriangleData.w * OctTreeVertices[finalTriangle].texCoord + 
@@ -180,54 +173,4 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 
 	OutputHitdata[index] = h;
 }
-
-
-//void recursiveoctTraversal(Ray r, int currentNode, float4 returnT, int triangleIndex)
-//{
-//	HLSLNode curr = OctTree[currentNode];
-//	float4x4 scale = cd.scale;
-//	for(unsigned int i = 0; i < 8; i++)
-//	{
-//		//Check if the next node exists
-//		if(curr.nodes[i] < 0) break;
-//
-//		if(RayAABB(r,  OctTree[curr.nodes[i]].boundLow, OctTree[curr.nodes[i]].boundHigh))
-//		{
-//			int nrVertices = OctTree[curr.nodes[i]].nrVertices;
-//
-//			//Check if it's a leaf node or not
-//			if( nrVertices == 0)
-//				recursiveoctTraversal(r, i, returnT, triangleIndex);
-//			else
-//			{
-//				int startTri = OctTree[curr.nodes[i]].startVertexLocation;
-//				int endTri = startTri + nrVertices;
-//				for(unsigned int tri = startTri; tri < endTri; tri++)
-//				{
-//					//Avoid selfcollision
-//					if(triangleIndex == tri) continue;
-//
-//					float4 ret = RayTriangleIntersection(r,mul(float4(OBJ[i].position,1), scale).xyz, mul(float4(OBJ[i+1].position,1), scale).xyz, mul(float4(OBJ[i+2].position,1), scale).xyz);
-//					//returnT = returnT4.x;
-//
-//					if(ret.x < returnT.x && ret.x > DELTARANGE || returnT.x < 0.0f && ret.x > DELTARANGE)
-//					{
-//						returnT = ret;
-//						triangleIndex = tri;
-//
-//						//h.distance = returnT;
-//						//uvCoord = returnT4.w*OBJ[i].texCoord + returnT4.y*OBJ[i+1].texCoord +returnT4.z * OBJ[i+2].texCoord;
-//						//uvCoord *= 512;
-//						//h.materialID = OBJ[i].materialID;
-//						//h.color = objtexture[uvCoord];
-//						//tempID = increasingID;
-//						//h.reflection = 0.0f;//Triangles[i].reflection;
-//						//h.normal = OBJ[i].normal;//normalize(cross(Triangles[i+1].position-Triangles[i].position,Triangles[i+2].position-Triangles[i].position));
-//					}
-//				}
-//			}
-//		}
-//	}
-//}
-
 #endif // PRIMARYRAYCOMPUTE

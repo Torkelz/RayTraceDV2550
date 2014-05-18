@@ -15,6 +15,7 @@
 #include "Main.h"
 #include "OBJLoader.h"
 #include "OctTree.h"
+#include "ShaderDefinitions.h"
 
 #define TEST
 #define RESOLUTION 400
@@ -37,8 +38,6 @@ ComputeShader*				g_CS_IntersectionStage	= NULL;
 ComputeShader*				g_CS_ColorStage			= NULL;
 
 ComputeBuffer*				g_ObjectBuffer			= NULL;
-ComputeBuffer*				g_OBJBuffer				= NULL;
-ComputeBuffer*				g_indexBuffer			= NULL;
 ComputeBuffer*				g_lightBuffer			= NULL;
 ComputeBuffer*				g_rayBuffer				= NULL;
 ComputeBuffer*				g_hitDataBuffer			= NULL;
@@ -47,18 +46,14 @@ ComputeBuffer*				g_materialBuffer		= NULL;
 ComputeBuffer*				g_OctTreeBuffer			= NULL;
 ComputeBuffer*				g_OctTriangleBuffer		= NULL;
 
-
 D3D11Timer*					g_Timer					= NULL;
 
 Camera*						g_camera				= NULL;
 MouseInput*					g_mouseInput			= NULL;
 Buffer*						g_cBuffer				= NULL;
 Loader*						g_loader				= NULL;
-OBJMaterial					g_material				;
-vector<OBJMaterial>			g_materialList			;
 
 ID3D11ShaderResourceView*	g_objTexture			= NULL;
-
 
 cData						g_cData;
 float						g_cameraSpeed			= 50.f;
@@ -66,55 +61,6 @@ int							g_lightSpeed			= 10;
 int							g_nrLights				= 10;
 
 int g_Width, g_Height;
-//bool g_ShouldQuit;
-
-
-struct ShaderDefinitions
-{
-	std::string noThreadsX;
-	std::string noThreadsY;
-	std::string noThreadsZ;
-	std::string noDGroupsX;
-	std::string noDGroupsY;
-	std::string noDGroupsZ;
-	std::string BOUNCES;
-	std::string LIGHTS;
-	bool firstPass;
-	float avgCompRay;
-	float avgIntersect;
-	float avgColor;
-
-	ComputeShader*	CS_ComputeRay;
-	ComputeShader*	CS_IntersectionStage;
-	ComputeShader*	CS_ColorStage;
-
-	ShaderDefinitions() : noThreadsX(),noThreadsY(),noThreadsZ(),
-		noDGroupsX(),noDGroupsY(),noDGroupsZ(),BOUNCES(),LIGHTS(),
-		CS_ComputeRay(nullptr), CS_IntersectionStage(nullptr), CS_ColorStage(nullptr),
-		firstPass(true),avgCompRay(0.f),avgIntersect(0.f),avgColor(0.f)
-	{
-
-	}
-	ShaderDefinitions(ShaderDefinitions &&p_Other)
-		: noThreadsX(std::move(p_Other.noThreadsX)),noThreadsY(std::move(p_Other.noThreadsY)),noThreadsZ(std::move(p_Other.noThreadsZ)),
-		noDGroupsX(std::move(p_Other.noDGroupsX)),noDGroupsY(std::move(p_Other.noDGroupsY)),noDGroupsZ(std::move(p_Other.noDGroupsZ)),
-		BOUNCES(std::move(p_Other.BOUNCES)),LIGHTS(std::move(p_Other.LIGHTS)),
-		CS_ComputeRay(std::move(p_Other.CS_ComputeRay)), CS_IntersectionStage(std::move(p_Other.CS_IntersectionStage)), 
-		CS_ColorStage(std::move(p_Other.CS_ColorStage)),	firstPass(std::move(p_Other.firstPass)),
-		avgCompRay(std::move(p_Other.avgCompRay)),avgIntersect(std::move(p_Other.avgIntersect)),avgColor(std::move(p_Other.avgColor))
-	{
-		p_Other.CS_ComputeRay = nullptr;
-		p_Other.CS_IntersectionStage = nullptr;
-		p_Other.CS_ColorStage = nullptr;
-	}
-	~ShaderDefinitions()
-	{
-		SAFE_DELETE(CS_ComputeRay);
-		SAFE_DELETE(CS_IntersectionStage);
-		SAFE_DELETE(CS_ColorStage);
-	}
-};
-
 vector<ShaderDefinitions> g_Shaders;
 
 //--------------------------------------------------------------------------------------
@@ -276,18 +222,20 @@ HRESULT Init()
 	g_DeviceContext->UpdateSubresource(g_cBuffer->getBufferPointer(), 0, NULL, &g_cData, 0, 0);
 	g_cBuffer->apply(0);
 
-	Vertex* box = CreateBox(40,D3DXVECTOR3(0,0,0));
 
 	g_loader = new Loader("obj//");
 	g_loader->loadFile("sf.obj");
 
+	//Get loaded materials
+	vector<OBJMaterial> materialList;
+	OBJMaterial	material;
 	for(int i = 0; i <= g_loader->getMaterialId(); i++)
 	{
-		g_material.Ka = D3DXVECTOR4(g_loader->GetMaterialAt(i).Ka,1);
-		g_material.Kd = D3DXVECTOR4(g_loader->GetMaterialAt(i).Kd,1);
-		g_material.Ks = D3DXVECTOR4(g_loader->GetMaterialAt(i).Ks,g_loader->GetMaterialAt(i).Ns);
-		g_material.Ni = g_loader->GetMaterialAt(i).Ni;
-		g_materialList.push_back(g_material);
+		material.Ka = D3DXVECTOR4(g_loader->GetMaterialAt(i).Ka,1);
+		material.Kd = D3DXVECTOR4(g_loader->GetMaterialAt(i).Kd,1);
+		material.Ks = D3DXVECTOR4(g_loader->GetMaterialAt(i).Ks,g_loader->GetMaterialAt(i).Ns);
+		material.Ni = g_loader->GetMaterialAt(i).Ni;
+		materialList.push_back(material);
 	}
 
 	g_cData.nrVertices = g_loader->getVertices().size();
@@ -296,7 +244,6 @@ HRESULT Init()
 
 
 	OctTree tree;
-
 	//Creates the tree and removes unused nodes
 	tree.CreateTree( g_loader->getVertices().data(), g_loader->getVertices().size());
 
@@ -306,20 +253,15 @@ HRESULT Init()
 	std::vector<HLSLNode> HLnodes;
 	tree.OrganizeData(vertices, HLnodes, g_loader->getVertices().data());
 
-
-	g_OctTreeBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(HLSLNode), HLnodes.size(), true, false,HLnodes.data(),false, "Structured Buffer:OctTreeBuffer");
-	g_OctTriangleBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(OBJVertex),vertices.size(), true, false, vertices.data(),false, "Structured Buffer:OctVertices");
-
-
-
 	//Primary rays
 	g_rayBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(Ray),g_Height*g_Width, true, true, NULL,true, "Structured Buffer:Rays");
 
-	//IntersectionStage	
-	g_ObjectBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(Vertex),36, true, false, box,false, "Structured Buffer:BOXVertex");
-	g_OBJBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(OBJVertex),g_loader->getVertices().size(), true, false, g_loader->getVertices().data(),false, "Structured Buffer:OBJVertex");
-	g_indexBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(DWORD),g_loader->getIndices().size(), true, false, g_loader->getIndices().data(),false, "Structured Buffer:Indices");
+	//IntersectionStage
+	Vertex* box = CreateBox(40,D3DXVECTOR3(0,0,0));
 
+	g_ObjectBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(Vertex),36, true, false, box,false, "Structured Buffer:BOXVertex");
+	g_OctTreeBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(HLSLNode), HLnodes.size(), true, false,HLnodes.data(),false, "Structured Buffer:OctTreeBuffer");
+	g_OctTriangleBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(OBJVertex),vertices.size(), true, false, vertices.data(),false, "Structured Buffer:OctVertices");
 	g_hitDataBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(HitData),g_Height*g_Width, true, true, NULL,true, "Structured Buffer:HitData");
 
 	D3DX11CreateShaderResourceViewFromFile(g_Device, g_loader->GetMaterialAt(0).map_Kd,NULL,NULL,&g_objTexture, &hr);
@@ -327,9 +269,10 @@ HRESULT Init()
 	//ColorStage
 	g_lightBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(PointLight),sizeof(g_lights)/sizeof(PointLight), true, false, &g_lights,true, "Structured Buffer:Light");
 	g_accColorBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(D3DXVECTOR4),g_Height*g_Width, true, true, NULL,true, "Structured Buffer:accColor");
-	g_materialBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(OBJMaterial),g_materialList.size(), true, false, g_materialList.data(),false, "Structured Buffer:OBJMaterail");
+	g_materialBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(OBJMaterial),materialList.size(), true, false, materialList.data(),false, "Structured Buffer:OBJMaterail");
 	
 	//CreateShaders(4,4,1,100,100,1,0,1);
+	delete box;
 
 #ifdef TEST
 
@@ -367,21 +310,21 @@ HRESULT Update(float deltaTime)
 	g_cData.viewMatInv = viewInv;
 
 	//Lights movement
-	for(int i = 0; i < 10; i++)
-	{
-		if(i%2 == 0)
-		{
-			g_lights[i].position.y += g_lightSpeed * deltaTime;
-		}
-		else
-		{
-			g_lights[i].position.y -= g_lightSpeed * deltaTime;
-		}
-	}
-	if(g_lights[0].position.y < -10 || g_lights[0].position.y > 10)
-	{
-		g_lightSpeed *= -1;
-	}
+	//for(int i = 0; i < 10; i++)
+	//{
+	//	if(i%2 == 0)
+	//	{
+	//		g_lights[i].position.y += g_lightSpeed * deltaTime;
+	//	}
+	//	else
+	//	{
+	//		g_lights[i].position.y -= g_lightSpeed * deltaTime;
+	//	}
+	//}
+	//if(g_lights[0].position.y < -10 || g_lights[0].position.y > 10)
+	//{
+	//	g_lightSpeed *= -1;
+	//}
 	return S_OK;
 }
 
@@ -390,33 +333,36 @@ HRESULT Render(float deltaTime, ShaderDefinitions &shader)
 	g_DeviceContext->UpdateSubresource(g_cBuffer->getBufferPointer(), 0, NULL, &g_cData, 0, 0);
 	g_cBuffer->apply(0);
 	
-	static ID3D11UnorderedAccessView* clearuav[]			= { 0,0,0,0,0,0,0 };
-	static ID3D11ShaderResourceView* clearsrv[]			= { 0,0,0,0,0,0,0 };
+	static ID3D11UnorderedAccessView* clearuav[] = { 0,0,0,0,0,0,0 };
+	static ID3D11ShaderResourceView* clearsrv[]	= { 0,0,0,0,0,0,0 };
 
-	static ID3D11ShaderResourceView* bufftri[]				= { g_ObjectBuffer->GetResourceView(),
-														//g_OBJBuffer->GetResourceView(),
-														//g_indexBuffer->GetResourceView(),
-														g_OctTreeBuffer->GetResourceView(),
-														g_OctTriangleBuffer->GetResourceView(),
-														g_objTexture};
+	static ID3D11ShaderResourceView* bufftri[] = { 
+		g_ObjectBuffer->GetResourceView(),
+		g_OctTreeBuffer->GetResourceView(),
+		g_OctTriangleBuffer->GetResourceView(),
+		g_objTexture};
 
-	static ID3D11UnorderedAccessView* uavrays[]			= { g_rayBuffer->GetUnorderedAccessView(),
-														g_hitDataBuffer->GetUnorderedAccessView(),
-														g_BackBufferUAV,
-														g_accColorBuffer->GetUnorderedAccessView()};
-	static ID3D11UnorderedAccessView* uav[]				= { g_BackBufferUAV,
-														g_accColorBuffer->GetUnorderedAccessView()};
-	static ID3D11UnorderedAccessView* intersectionBuffer[] = {	g_rayBuffer->GetUnorderedAccessView(),
-														g_hitDataBuffer->GetUnorderedAccessView()};
+	static ID3D11UnorderedAccessView* uavrays[]	= { 
+		g_rayBuffer->GetUnorderedAccessView(),
+		g_hitDataBuffer->GetUnorderedAccessView(),
+		g_BackBufferUAV,
+		g_accColorBuffer->GetUnorderedAccessView()};
+
+	static ID3D11UnorderedAccessView* uav[]	= { 
+		g_BackBufferUAV,
+		g_accColorBuffer->GetUnorderedAccessView()};
+
+	static ID3D11UnorderedAccessView* intersectionBuffer[] = {
+		g_rayBuffer->GetUnorderedAccessView(),
+		g_hitDataBuffer->GetUnorderedAccessView()};
 	
-	static ID3D11ShaderResourceView* colorBuffer[]			= {	g_ObjectBuffer->GetResourceView(),
-														g_hitDataBuffer->GetResourceView(),
-														g_lightBuffer->GetResourceView(),
-														g_OctTreeBuffer->GetResourceView(),
-														g_OctTriangleBuffer->GetResourceView(),
-														/*g_OBJBuffer->GetResourceView(),
-														g_indexBuffer->GetResourceView(),*/
-														g_materialBuffer->GetResourceView()};
+	static ID3D11ShaderResourceView* colorBuffer[] = {	
+		g_ObjectBuffer->GetResourceView(),
+		g_hitDataBuffer->GetResourceView(),
+		g_lightBuffer->GetResourceView(),
+		g_OctTreeBuffer->GetResourceView(),
+		g_OctTriangleBuffer->GetResourceView(),
+		g_materialBuffer->GetResourceView()};
 
 	// ### PRIMARY RAY ###
 	g_DeviceContext->CSSetUnorderedAccessViews(0, 4, uavrays, NULL);
@@ -430,6 +376,12 @@ HRESULT Render(float deltaTime, ShaderDefinitions &shader)
 	g_DeviceContext->CSSetUnorderedAccessViews(0, 4, clearuav, NULL);
 	// ### PRIMARY RAY END ###
 	shader.avgCompRay = (shader.avgCompRay + (float)g_Timer->GetTime()) * 0.5f;
+
+	/*PointLight* lightPointer =  g_lightBuffer->Map<PointLight>();
+
+	memcpy(lightPointer, g_lights, sizeof(PointLight)*sizeof(g_lights)/sizeof(PointLight));
+	g_lightBuffer->Unmap();
+	g_lightBuffer->CopyToResource();*/
 
 	unsigned int bounces = std::atoi(shader.BOUNCES.c_str());
 	for(unsigned int i = 0; i <= bounces; i++)
@@ -448,12 +400,6 @@ HRESULT Render(float deltaTime, ShaderDefinitions &shader)
 		// ### IntersectionStage END ###
 		shader.avgIntersect = (shader.avgIntersect + (float)g_Timer->GetTime()) * 0.5f;
 		// ### ColorStage ###
-		/*PointLight* lightPointer =  g_lightBuffer->Map<PointLight>();
-
-		memcpy(lightPointer, g_lights, sizeof(PointLight)*sizeof(g_lights)/sizeof(PointLight));
-		g_lightBuffer->Unmap();
-		g_lightBuffer->CopyToResource();*/
-
 		g_DeviceContext->CSSetShaderResources(0,6,colorBuffer);		
 		g_DeviceContext->CSSetUnorderedAccessViews(0, 2, uav, NULL);
 
@@ -467,20 +413,7 @@ HRESULT Render(float deltaTime, ShaderDefinitions &shader)
 		g_DeviceContext->CSSetUnorderedAccessViews(0, 2, clearuav, NULL);
 		// ### ColorStage END ###
 		shader.avgColor = (shader.avgColor + (float)g_Timer->GetTime()) * 0.5f;
-
-		//if(shader.firstPass)
-		//{
-		//	shader.firstPass = false;
-		//	g_cData.firstPass = shader.firstPass;
-		//	g_DeviceContext->UpdateSubresource(g_cBuffer->getBufferPointer(), 0, NULL, &g_cData, 0, 0);
-		//}
 	}
-	/*
-	 shader.firstPass = true;
-	 g_cData.firstPass = shader.firstPass;
-	 g_DeviceContext->UpdateSubresource(g_cBuffer->getBufferPointer(), 0, NULL, &g_cData, 0, 0);*/
-			
-
 
 	if(FAILED(g_SwapChain->Present( 0, 0 )))
 		return E_FAIL;
@@ -559,7 +492,7 @@ int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 		}
 	}
 
-	ofstream myfile("testsOctIncColor.txt");
+	ofstream myfile("testsOctIncColorTEST.txt");
 	if(myfile.is_open())
 	{
 		myfile << "TESTS " << RESOLUTION << "x" << RESOLUTION << "\n";
@@ -707,7 +640,6 @@ LRESULT CALLBACK WndProc( HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam 
 				if (g_mouseInput->getMode())
 				{
 					g_mouseInput->rawUpdate(raw);
-					//g_mouseInput->moveCursorToCenter(g_Width, g_Height);
 					g_mouseInput->moveCursorToCenter();
 					g_mouseInput->notifyObservers();
 				}

@@ -4,20 +4,18 @@
 #include "structsCompute.fx"
 #include "IntersectionCompute.fx"
 
-float3 LightSourceCalc(Ray r, HitData h, PointLight l, int materialID);
+//float3 LightSourceCalc(Ray r, HitData h, PointLight l, int materialID);
+float3 LightSourceCalc(Ray r, float3 normal, float3 color, PointLight L, int materialID);
+
 
 cbuffer cBufferdata : register(b0){cData cd;};
 
 StructuredBuffer<Vertex> Triangles : register(t0);
 StructuredBuffer<HitData> InputHitdata : register(t1);
 StructuredBuffer<PointLight> pl : register(t2);
-
-//StructuredBuffer<OBJVertex> OBJ : register(t3);
-//StructuredBuffer<DWORD> Indices : register(t4);
 StructuredBuffer<HLSLNode> OctTree : register(t3);
 StructuredBuffer<OBJVertex> OctTreeVertices : register(t4);
 StructuredBuffer<OBJMaterial> material : register(t5);
-
 
 RWTexture2D<float4> output : register(u0);
 RWStructuredBuffer<float4> accOutput : register(u1);
@@ -30,7 +28,6 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 	uint dimension;
 	uint stride;
 	OctTreeVertices.GetDimensions(dimension, stride);
-	//int increasingID = 0;
 
 	HitData h = InputHitdata[index];
 	Sphere s;
@@ -45,33 +42,31 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 		output[ThreadID.xy] = float4(0,0,0,1);
 		return;
 	}
-	
-	float4 t = float4(0, 0, 0, 0);
-	float4 color = float4(0,0,0,0);
+
+	volatile float4 color = float4(0,0,0,0);
 	Ray L;// Tänka på att inte skriva till texturen sen!!!! utan att eventuellt kolla om de ska göras.
 	L.origin = h.r.origin + (h.r.direction *h.distance);
-	float shadowh;
+	volatile float shadowh;
 		
-	float deltaRange = 0.001f;
-	float returnT = 0.0f;
-	float4 returnT4 = float4(0,0,0,0);
-	//float hubba = 0;//   ## THE BEST VARIABLE IN THE WORLD!!!!!!
-	//[unroll] //IF FPS PROBLEM REMOVE THIS
-	//float angle = 0.0f;
-	int numV = cd.nrVertices;
+	const float deltaRange = 0.001f;
+	volatile float returnT = 0.0f;
+	volatile float4 returnT4 = float4(0,0,0,0);
+
 	float4x4 scale = cd.scale;
 	float lightDistance;
-	int increasingID = dimension;
+	volatile int increasingID = dimension;
+
+
 	for(int i = 0; i < LIGHTS;i++)
 	{
 		increasingID = 0;
-		//NULLIFY
-		t = float4(0, 0, 0, 0);			
+		//NULLIFY	
 		shadowh= -1.f;
+
 		//RECALCULATE
 		lightDistance = length(pl[i].position.xyz - L.origin);
 		L.direction = normalize(pl[i].position.xyz - L.origin);
-		//if(h.id != s.id)
+
 		if(h.id != increasingID)
 		{
 			returnT = RaySphereIntersect(L, s);
@@ -84,7 +79,6 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 			
 		for(int j = 0; j < 36; j+=3)
 		{
-			//if(h.id != Triangles[j].id)
 			if(h.id != increasingID)
 			{
 				returnT4 = RayTriangleIntersection(L,Triangles[j].position, Triangles[j+1].position, Triangles[j+2].position);
@@ -97,6 +91,7 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 			increasingID++;
 		}
 
+		//If root node in octree intersects
 		if(RayAABB(L,  OctTree[0].boundLow, OctTree[0].boundHigh))
 		{
 			int stackIndex = 0;
@@ -105,6 +100,7 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 			stack[++stackIndex] = OctTree[0];
 			volatile HLSLNode node;
 			
+			//Depth first search
 			[allow_uav_condition]
 			while(stackIndex > 0)
 			{
@@ -146,27 +142,18 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 			}
 		}
 			
-		//SE ÖVER VARIABLEN "t" behövvs inte ?
-		if(shadowh > deltaRange && shadowh < lightDistance)
+		//If in light add color
+		if(!(shadowh > deltaRange && shadowh < lightDistance))
 		{
-			t += 0.0f * float4(LightSourceCalc(L, h, pl[i], h.materialID),0.f);
-			//hubba += 0.5;
+			color += h.color * 1.0f;//float4(LightSourceCalc(L, h.normal, h.color.xyz, pl[i], h.materialID),0.f);
 		}
-		else
-		{
-			t += 1.0f * float4(LightSourceCalc(L, h, pl[i], h.materialID),0.f);
-			//hubba += 1.0f;
-		}
-			
-		color += (h.color ) * t;//* float4(0.1f,0.1f,0.1f,1)
 	}
-	//color /= hubba;
 	accOutput[index] += color * h.r.power;
 		
 	output[ThreadID.xy] = saturate(accOutput[index]);
 }
 
-float3 LightSourceCalc(Ray r, HitData hd, PointLight L, int materialID)
+float3 LightSourceCalc(Ray r, float3 normal, float3 color, PointLight L, int materialID)
 {
 		
         float3 litColor = 0;
@@ -198,15 +185,13 @@ float3 LightSourceCalc(Ray r, HitData hd, PointLight L, int materialID)
 		litColor = ambient.xyz;
         //Add ambient light term
         
-
-        lightintensity = saturate(dot(hd.normal, lightVec));
+        lightintensity = saturate(dot(normal, lightVec));
         litColor += diffuse.xyz * lightintensity;
         lightDir = -lightVec;
         if(lightintensity > 0.0f)
         {
-            
             float3 viewDir = normalize(r.origin - cd.camPos);
-            float3 ref = reflect(-lightDir, normalize(hd.normal));
+            float3 ref = reflect(-lightDir, normalize(normal));
             //float specFac = pow(max(dot(ref, viewDir), 0.0f), shininess);
 			float scalar = max(dot(ref, viewDir), 0.0f);
 			float specFac = 1.0f;
@@ -214,7 +199,7 @@ float3 LightSourceCalc(Ray r, HitData hd, PointLight L, int materialID)
 				specFac *= scalar;
             litColor += specular.xyz * specFac;
         }
-        litColor = litColor * hd.color.xyz;
+        litColor = litColor * color;
 
         return litColor*fade;
 }
