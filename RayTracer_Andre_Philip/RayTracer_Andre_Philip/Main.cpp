@@ -17,7 +17,7 @@
 #include "OctTree.h"
 #include "ShaderDefinitions.h"
 
-#define TEST
+//#define TEST
 #define RESOLUTION 400
 
 //--------------------------------------------------------------------------------------
@@ -238,7 +238,6 @@ HRESULT Init()
 		materialList.push_back(material);
 	}
 
-	g_cData.nrVertices = g_loader->getVertices().size();
 	D3DXMatrixScaling(&g_cData.scale, 1.0f,1.0f,1.0f);
 	g_DeviceContext->UpdateSubresource(g_cBuffer->getBufferPointer(), 0, NULL, &g_cData, 0, 0);
 
@@ -492,7 +491,7 @@ int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 		}
 	}
 
-	ofstream myfile("testsOctIncColorTEST.txt");
+	ofstream myfile("testsOctIncColorTEST2.txt");
 	if(myfile.is_open())
 	{
 		myfile << "TESTS " << RESOLUTION << "x" << RESOLUTION << "\n";
