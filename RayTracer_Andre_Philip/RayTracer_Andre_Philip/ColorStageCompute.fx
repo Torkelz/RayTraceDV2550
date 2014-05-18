@@ -4,9 +4,7 @@
 #include "structsCompute.fx"
 #include "IntersectionCompute.fx"
 
-//float3 LightSourceCalc(Ray r, HitData h, PointLight l, int materialID);
 float3 LightSourceCalc(Ray r, float3 normal, float3 color, PointLight L, int materialID);
-
 
 cbuffer cBufferdata : register(b0){cData cd;};
 
@@ -43,55 +41,65 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 		return;
 	}
 
-	volatile float4 color = float4(0,0,0,0);
-	Ray L;// Tänka på att inte skriva till texturen sen!!!! utan att eventuellt kolla om de ska göras.
+	volatile Ray L;// Tänka på att inte skriva till texturen sen!!!! utan att eventuellt kolla om de ska göras.
 	L.origin = h.r.origin + (h.r.direction *h.distance);
-	volatile float shadowh;
 		
 	const float deltaRange = 0.001f;
 	volatile float returnT = 0.0f;
-	volatile float4 returnT4 = float4(0,0,0,0);
 
 	float4x4 scale = cd.scale;
-	float lightDistance;
 	volatile int increasingID = dimension;
 
-
-	for(int i = 0; i < LIGHTS;i++)
+	struct shadowData
 	{
-		increasingID = 0;
-		//NULLIFY	
-		shadowh= -1.f;
+		float shadow;
+		float3 direction;
+	};
 
-		//RECALCULATE
-		lightDistance = length(pl[i].position.xyz - L.origin);
-		L.direction = normalize(pl[i].position.xyz - L.origin);
+	//Set init values for all lights
+	volatile shadowData shadowarray[LIGHTS];
+	for(unsigned int i = 0; i < LIGHTS; i++)
+	{
+		shadowarray[i].shadow = -1.0f;
+		shadowarray[i].direction = normalize(pl[i].position.xyz - L.origin);
+	}
 
+	increasingID = 0;
+	if(h.id != increasingID)
+	{
+		for(unsigned int i = 0; i < LIGHTS; i++)
+		{
+			L.direction = shadowarray[i].direction;
+			returnT = RaySphereIntersect(L, s);
+			if(returnT < shadowarray[i].shadow || shadowarray[i].shadow < 0.0f && returnT > deltaRange)
+			{
+				shadowarray[i].shadow = returnT;
+			}
+		}
+	}
+	increasingID++;
+
+	for(int j = 0; j < 36; j+=3)
+	{
 		if(h.id != increasingID)
 		{
-			returnT = RaySphereIntersect(L, s);
-			if(returnT < shadowh || shadowh < 0.0f && returnT > deltaRange)
+			for(unsigned int i = 0; i < LIGHTS; i++)
 			{
-				shadowh = returnT;
+				L.direction = shadowarray[i].direction;
+				returnT = RayTriangleIntersection(L,Triangles[j].position, Triangles[j+1].position, Triangles[j+2].position).x;
+				//returnT = returnT4.x;
+				if(returnT < shadowarray[i].shadow && returnT > deltaRange || shadowarray[i].shadow < 0.0f && returnT > deltaRange)
+				{
+					shadowarray[i].shadow = returnT;
+				}
 			}
 		}
 		increasingID++;
-			
-		for(int j = 0; j < 36; j+=3)
-		{
-			if(h.id != increasingID)
-			{
-				returnT4 = RayTriangleIntersection(L,Triangles[j].position, Triangles[j+1].position, Triangles[j+2].position);
-				returnT = returnT4.x;
-				if(returnT < shadowh && returnT > deltaRange || shadowh < 0.0f && returnT > deltaRange)
-				{
-					shadowh = returnT;
-				}
-			}
-			increasingID++;
-		}
+	}
 
-		//If root node in octree intersects
+	for(i = 0; i < LIGHTS; i++)
+	{
+		L.direction = shadowarray[i].direction;
 		if(RayAABB(L,  OctTree[0].boundLow, OctTree[0].boundHigh))
 		{
 			int stackIndex = 0;
@@ -116,15 +124,13 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 						//Avoid selfcollision
 						if(h.id == vertexIndex) continue;
 
-						returnT4 = RayTriangleIntersection(L,mul(float4(OctTreeVertices[vertexIndex].position,1), scale).xyz, 
+						returnT = RayTriangleIntersection(L,mul(float4(OctTreeVertices[vertexIndex].position,1), scale).xyz, 
 							mul(float4(OctTreeVertices[vertexIndex + 1].position,1), scale).xyz, 
-							mul(float4(OctTreeVertices[vertexIndex + 2].position,1), scale).xyz);
-
-						returnT = returnT4.x;
-
-						if(returnT < shadowh && returnT > deltaRange || shadowh < 0.0f && returnT > deltaRange)
+							mul(float4(OctTreeVertices[vertexIndex + 2].position,1), scale).xyz).x;
+					
+						if(returnT < shadowarray[i].shadow && returnT > deltaRange || shadowarray[i].shadow < 0.0f && returnT > deltaRange)
 						{
-							shadowh = returnT;
+							shadowarray[i].shadow = returnT;
 						}
 					}
 				}
@@ -141,11 +147,15 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 				}
 			}
 		}
-			
-		//If in light add color
-		if(!(shadowh > deltaRange && shadowh < lightDistance))
+	}
+
+	volatile float4 color = float4(0,0,0,0);
+	for(i = 0; i < LIGHTS; i++)
+	{
+		if(!(shadowarray[i].shadow > deltaRange && shadowarray[i].shadow < length(pl[i].position.xyz - L.origin)))
 		{
-			color += h.color * 1.0f;//float4(LightSourceCalc(L, h.normal, h.color.xyz, pl[i], h.materialID),0.f);
+			L.direction = shadowarray[i].direction;
+			color += h.color * float4(LightSourceCalc(L, h.normal, h.color.xyz, pl[i], h.materialID),0.f);
 		}
 	}
 	accOutput[index] += color * h.r.power;
@@ -192,7 +202,6 @@ float3 LightSourceCalc(Ray r, float3 normal, float3 color, PointLight L, int mat
         {
             float3 viewDir = normalize(r.origin - cd.camPos);
             float3 ref = reflect(-lightDir, normalize(normal));
-            //float specFac = pow(max(dot(ref, viewDir), 0.0f), shininess);
 			float scalar = max(dot(ref, viewDir), 0.0f);
 			float specFac = 1.0f;
 			for(int i = 0; i < shininess;i++)
