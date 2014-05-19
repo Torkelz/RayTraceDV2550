@@ -237,20 +237,27 @@ HRESULT Init()
 		material.Ni = g_loader->GetMaterialAt(i).Ni;
 		materialList.push_back(material);
 	}
+	material.Ka = D3DXVECTOR4(2.1f,3.1f,8.1f,1);
+	material.Kd = D3DXVECTOR4(0.5f,0.5f,0.5f,1);
+	material.Ks = D3DXVECTOR4(0.5f,0.5f,0.5f,64);
+	materialList.push_back(material);
 
 	D3DXMatrixScaling(&g_cData.scale, 1.0f,1.0f,1.0f);
 	g_DeviceContext->UpdateSubresource(g_cBuffer->getBufferPointer(), 0, NULL, &g_cData, 0, 0);
 
+	std::vector<OBJVertex> OBJvertices = g_loader->getVertices();
+	for(int i = OBJvertices.size() * 0.75f; i < OBJvertices.size(); i++)
+			OBJvertices.at(i).materialID = materialList.size() - 1;
 
 	OctTree tree;
 	//Creates the tree and removes unused nodes
-	tree.CreateTree( g_loader->getVertices().data(), g_loader->getVertices().size());
+	tree.CreateTree( OBJvertices.data(), OBJvertices.size());
 
 	//Organize data for the shaders
 	std::vector<OBJVertex> vertices;
-	vertices.reserve(g_loader->getVertices().size());
+	vertices.reserve(OBJvertices.size());
 	std::vector<HLSLNode> HLnodes;
-	tree.OrganizeData(vertices, HLnodes, g_loader->getVertices().data());
+	tree.OrganizeData(vertices, HLnodes, OBJvertices.data());
 
 	//Primary rays
 	g_rayBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(Ray),g_Height*g_Width, true, true, NULL,true, "Structured Buffer:Rays");
@@ -491,7 +498,7 @@ int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 		}
 	}
 
-	ofstream myfile("testsOctIncColorTEST2.txt");
+	ofstream myfile("testsOctIncColorTEST2Release.txt");
 	if(myfile.is_open())
 	{
 		myfile << "TESTS " << RESOLUTION << "x" << RESOLUTION << "\n";
