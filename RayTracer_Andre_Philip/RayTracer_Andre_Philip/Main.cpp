@@ -266,7 +266,7 @@ HRESULT Init()
 	D3DX11CreateShaderResourceViewFromFile(g_Device, g_loader->GetMaterialAt(0).map_Kd,NULL,NULL,&g_objTexture, &hr);
 
 	//ColorStage
-	g_lightBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(PointLight),sizeof(g_lights)/sizeof(PointLight), true, false, &g_lights,true, "Structured Buffer:Light");
+	g_lightBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(Light),sizeof(g_lights)/sizeof(Light), true, false, &g_lights,true, "Structured Buffer:Light");
 	g_accColorBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(D3DXVECTOR4),g_Height*g_Width, true, true, NULL,true, "Structured Buffer:accColor");
 	g_materialBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(OBJMaterial),materialList.size(), true, false, materialList.data(),false, "Structured Buffer:OBJMaterail");
 	
@@ -285,7 +285,7 @@ HRESULT Init()
 		CreateShaders(i,i,1,groups,groups,1,5,5);
 	}
 #else
-	CreateShaders(2,2,1,200,200,1,0,1);
+	CreateShaders(2,2,1,200,200,1,0,2);
 #endif
 
 	return S_OK;

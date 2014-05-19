@@ -49,7 +49,7 @@ struct Vertex
 	float	reflection;
 };
 
-struct PointLight
+struct Light
 {
 	float4 position;
 	float4 color;
@@ -57,7 +57,9 @@ struct PointLight
 	float4 ambient;
 	float4 specular;
 	float4 att;
+	float3 direction;
 	float range;
+	int type; // 0 == point, 1 == directional
 };
 
 struct OBJVertex

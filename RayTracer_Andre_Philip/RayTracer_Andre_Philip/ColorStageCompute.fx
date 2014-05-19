@@ -4,13 +4,13 @@
 #include "structsCompute.fx"
 #include "IntersectionCompute.fx"
 
-float3 LightSourceCalc(Ray r, float3 normal, float3 color, PointLight L, int materialID);
+float3 LightSourceCalc(Ray r, float3 normal, float3 color, Light L, int materialID);
 
 cbuffer cBufferdata : register(b0){cData cd;};
 
 StructuredBuffer<Vertex> Triangles : register(t0);
 StructuredBuffer<HitData> InputHitdata : register(t1);
-StructuredBuffer<PointLight> pl : register(t2);
+StructuredBuffer<Light> pl : register(t2);
 StructuredBuffer<HLSLNode> OctTree : register(t3);
 StructuredBuffer<OBJVertex> OctTreeVertices : register(t4);
 StructuredBuffer<OBJMaterial> material : register(t5);
@@ -163,54 +163,74 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 	output[ThreadID.xy] = saturate(accOutput[index]);
 }
 
-float3 LightSourceCalc(Ray r, float3 normal, float3 color, PointLight L, int materialID)
+float3 LightSourceCalc(Ray r, float3 normal, float3 color, Light L, int materialID)
 {
-		
-        float3 litColor = 0;
-        //The vector from surface to the light
-        float3 lightVec = L.position.xyz - r.origin;
-        float lightintensity;
-        float3 lightDir;
-        float3 reflection;
-        float3 specular = 1;
-		float3 ambient = L.ambient.xyz;
-		float3 diffuse = L.diffuse.xyz;
-		float shininess = 32;
-
-		if(materialID != -1)
+		if(L.type == 0)
 		{
-			diffuse  *= material[materialID].Kd.xyz;
-			ambient	 *= material[materialID].Ka.xyz;
-			specular *= material[materialID].Ks.xyz;
-			shininess = material[materialID].Ks.w;
-		}
-        //the distance deom surface to light
-        float d = length(lightVec);
-        float fade;
-        if(d > L.range)
-                return float3(0.0f, 0.0f, 0.0f);
-        fade = 1 - (d/ L.range);
-        //Normalize light vector
-        lightVec /= d;
-		litColor = ambient.xyz;
-        //Add ambient light term
-        
-        lightintensity = saturate(dot(normal, lightVec));
-        litColor += diffuse.xyz * lightintensity;
-        lightDir = -lightVec;
-        if(lightintensity > 0.0f)
-        {
-            float3 viewDir = normalize(r.origin - cd.camPos);
-            float3 ref = reflect(-lightDir, normalize(normal));
-			float scalar = max(dot(ref, viewDir), 0.0f);
-			float specFac = 1.0f;
-			for(int i = 0; i < shininess;i++)
-				specFac *= scalar;
-            litColor += specular.xyz * specFac;
-        }
-        litColor = litColor * color;
+			float3 litColor = 0;
+			//The vector from surface to the light
+			float3 lightVec = L.position.xyz - r.origin;
+			float lightintensity;
+			float3 lightDir;
+			float3 reflection;
+			float3 specular = 1;
+			float3 ambient = L.ambient.xyz;
+			float3 diffuse = L.diffuse.xyz;
+			float shininess = 32;
 
-        return litColor*fade;
+			if(materialID != -1)
+			{
+				diffuse  *= material[materialID].Kd.xyz;
+				ambient	 *= material[materialID].Ka.xyz;
+				specular *= material[materialID].Ks.xyz;
+				shininess = material[materialID].Ks.w;
+			}
+			//the distance deom surface to light
+			float d = length(lightVec);
+			float fade;
+			if(d > L.range)
+					return float3(0.0f, 0.0f, 0.0f);
+			fade = 1 - (d/ L.range);
+			//Normalize light vector
+			lightVec /= d;
+			litColor = ambient.xyz;
+			//Add ambient light term
+        
+			lightintensity = saturate(dot(normal, lightVec));
+			litColor += diffuse.xyz * lightintensity;
+			lightDir = -lightVec;
+			if(lightintensity > 0.0f)
+			{
+				float3 viewDir = normalize(r.origin - cd.camPos);
+				float3 ref = reflect(-lightDir, normalize(normal));
+				float scalar = max(dot(ref, viewDir), 0.0f);
+				float specFac = 1.0f;
+				for(int i = 0; i < shininess;i++)
+					specFac *= scalar;
+				litColor += specular.xyz * specFac;
+			}
+			litColor = litColor * color;
+
+			return litColor*fade;
+		}
+		else if(L.type == 1)
+		{
+			float attenuation = 1.0f;
+			//float3 L = -lightDirection;
+			//L = mul(view, float4(L, 0.f)).xyz;
+			float3 diffuseMaterial = float3(1,1,1);
+			if(materialID != -1)
+			{
+				diffuseMaterial = material[materialID].Kd.xyz;
+			}
+			float nDotL = saturate( dot( normal, -L.direction ) );
+			float3 diffuse = nDotL * L.color.xyz * diffuseMaterial;
+	
+			// Final value is the sum of the albedo and diffuse with attenuation applied
+			return saturate(diffuse * attenuation);
+		}
+		else
+			return float3(0,0,0);
 }
 
 #endif //COLORSTAGECOMPUTE
