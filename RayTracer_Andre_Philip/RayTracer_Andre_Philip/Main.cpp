@@ -285,7 +285,7 @@ HRESULT Init()
 		CreateShaders(i,i,1,groups,groups,1,5,5);
 	}
 #else
-	CreateShaders(2,2,1,200,200,1,0,2);
+	CreateShaders(16,16,1,25,25,1,0,2);
 #endif
 
 	return S_OK;
@@ -491,7 +491,7 @@ int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 		}
 	}
 
-	ofstream myfile("testsOctIncColorTEST2.txt");
+	ofstream myfile("testsOctFINAL800.txt");
 	if(myfile.is_open())
 	{
 		myfile << "TESTS " << RESOLUTION << "x" << RESOLUTION << "\n";
@@ -511,6 +511,18 @@ int WINAPI wWinMain( HINSTANCE hInstance, HINSTANCE hPrevInstance, LPWSTR lpCmdL
 			myfile << "Average ColorStage: \t\t" << shader.avgColor << " Milliseconds.\n";
 			myfile << "-------------------------------------\n";
 
+		}
+		for( auto &shader : g_Shaders)
+		{
+			if(shader.LIGHTS == "5")
+			{
+				myfile << "Threads(" << shader.noThreadsX << "\n";
+				myfile << "Average RayCreation: \t\t" << shader.avgCompRay << "\n";
+				myfile << "Average IntersectionStage: \t\t" << shader.avgIntersect << "\n";
+				myfile << "Average ColorStage: \t\t" << shader.avgColor << "\n";
+				myfile << "Sum: \t\t" << shader.avgCompRay + shader.avgIntersect + shader.avgColor << "\n";
+				myfile << "-------------------------------------\n";
+			}
 		}
 	}
 	myfile.close();
