@@ -7,7 +7,7 @@
 #define noDGroupsX 100
 #define noDGroupsY 100
 #define noDGroupsZ 1
-#define	TEST		4
+#define	TEST		0
 
 #if  TEST == 0
 #define BOUNCES 0

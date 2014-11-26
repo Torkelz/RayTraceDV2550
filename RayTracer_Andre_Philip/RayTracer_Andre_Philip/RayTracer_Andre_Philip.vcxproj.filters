@@ -75,11 +75,5 @@
     <FxCompile Include="PrimaryRayCompute.fx" />
     <FxCompile Include="IntersectionStageCompute.fx" />
     <FxCompile Include="ColorStageCompute.fx" />
-    <FxCompile Include="PrimaryCompute.fx">
-      <Filter>Not used</Filter>
-    </FxCompile>
-    <FxCompile Include="BasicCompute.fx">
-      <Filter>Not used</Filter>
-    </FxCompile>
   </ItemGroup>
 </Project>

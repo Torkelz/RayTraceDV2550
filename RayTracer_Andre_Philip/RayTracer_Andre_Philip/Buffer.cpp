@@ -139,7 +139,7 @@ HRESULT Buffer::init(ID3D11Device* p_pDevice, ID3D11DeviceContext* p_pDeviceCont
 
 	if(FAILED(hr))
 	{
-		MessageBox(NULL, "Unable to create buffer.", "Slenda Error", MB_ICONERROR | MB_OK);
+		MessageBox(NULL, L"Unable to create buffer.", L"Slenda Error", MB_ICONERROR | MB_OK);
 	}
 
 	return hr;
