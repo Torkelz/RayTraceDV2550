@@ -114,13 +114,10 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 			
 			if(shadowh > deltaRange && shadowh < lightDistance)
 			{
-				t += 0.0f * float4(LightSourceCalc(L, h, pl[i], h.materialID),0.f);
-				//hubba += 0.5;
 			}
 			else
 			{
-				t += 1.0f * float4(LightSourceCalc(L, h, pl[i], h.materialID),0.f);
-				//hubba += 1.0f;
+				t += float4(LightSourceCalc(L, h, pl[i], h.materialID),0.f);
 			}
 			
 			color += (h.color ) * t;//* float4(0.1f,0.1f,0.1f,1)
@@ -154,7 +151,7 @@ float3 LightSourceCalc(Ray r, HitData hd, PointLight L, int materialID)
 			specular *= material[materialID].Ks.xyz;
 			shininess = material[materialID].Ks.w;
 		}
-        //the distance deom surface to light
+        //the distance from surface to light
         float d = length(lightVec);
         float fade;
         if(d > L.range)

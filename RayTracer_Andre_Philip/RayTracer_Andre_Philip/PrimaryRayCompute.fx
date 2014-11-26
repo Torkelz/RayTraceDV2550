@@ -35,7 +35,6 @@ Ray CreateRay(uint3 thread, int screenWidth, int screenHeight, float3 camPos, ma
 
 	r.direction = dir;
 	r.power = 1.0f;
-	//r.id -1;
 	return r;
 }
 #endif // PRIMARYRAYCOMPUTE

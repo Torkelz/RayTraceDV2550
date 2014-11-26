@@ -1,16 +1,16 @@
 #ifndef STRUCTSCOMPUTE
 #define STRUCTSCOMPUTE
 
-#define noThreadsX 4
-#define noThreadsY 4
+#define noThreadsX 16
+#define noThreadsY 16
 #define noThreadsZ 1
-#define noDGroupsX 100
-#define noDGroupsY 100
+#define noDGroupsX 25
+#define noDGroupsY 25
 #define noDGroupsZ 1
 #define	TEST		0
 
 #if  TEST == 0
-#define BOUNCES 0
+#define BOUNCES 1
 #define LIGHTS  1
 #elif	TEST == 1
 #define BOUNCES 10

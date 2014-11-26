@@ -107,8 +107,8 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 				h.materialID = OBJ[i].materialID;
 				h.color = objtexture[uvCoord];
 				tempID = increasingID;
-				h.reflection = 0.0f;//Triangles[i].reflection;
-				h.normal = OBJ[i].normal;//normalize(cross(Triangles[i+1].position-Triangles[i].position,Triangles[i+2].position-Triangles[i].position));
+				h.reflection = 0.0f;
+				h.normal = OBJ[i].normal;
 			}
 		}
 		increasingID++;
@@ -118,8 +118,6 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 	if(tempID != -1)
 		h.id = tempID;
 
-	//h.color = float4(1,0,0,1);
-
 	OutputHitdata[index] = h;
 
 	if(h.id != -1)
@@ -128,7 +126,6 @@ void main( uint3 ThreadID : SV_DispatchThreadID )
 		r.direction = reflect(r.direction, h.normal);
 		if(r.power != 0.0f)
 			r.power = h.reflection;
-		//r.id = h.id;
 		IO_Rays[index] = r;
 	} 
 	

@@ -158,7 +158,7 @@ HRESULT Init()
 				"BTH - Direct3D 11.0 Template | Direct3D 11.0 device initiated with Direct3D %s feature level",
 				FeatureLevelToString(initiatedFeatureLevel)
 			);
-			SetWindowText(g_hWnd, (LPCWSTR)title);
+			SetWindowText(g_hWnd, title);
 
 			break;
 		}
@@ -219,8 +219,6 @@ HRESULT Init()
 	g_cBuffer->apply(0);
 
 	Vertex* box = CreateBox(40,D3DXVECTOR3(0,0,0));
-	//D3DXVECTOR4* dummy;
-	//dummy = (D3DXVECTOR4*) std::calloc(g_Height*g_Width, sizeof(D3DXVECTOR4));
 
 	g_loader = new Loader("obj//");
 	g_loader->loadFile("sf.obj");
@@ -251,7 +249,7 @@ HRESULT Init()
 
 	g_hitDataBuffer = g_ComputeSys->CreateBuffer(STRUCTURED_BUFFER, sizeof(HitData),g_Height*g_Width, true, true, NULL,true, "Structured Buffer:HitData");
 
-	D3DX11CreateShaderResourceViewFromFile(g_Device, (LPCWSTR)g_loader->GetMaterialAt(0).map_Kd,NULL,NULL,&g_objTexture, &hr);
+	D3DX11CreateShaderResourceViewFromFile(g_Device, g_loader->GetMaterialAt(0).map_Kd,NULL,NULL,&g_objTexture, &hr);
 
 	//ColorStage
 	g_CS_ColorStage = g_ComputeSys->CreateComputeShader(_T("ColorStageCompute.fx"), NULL, "main", NULL);
@@ -357,11 +355,6 @@ HRESULT Render(float deltaTime)
 		// ### IntersectionStage END ###
 		interTime += g_Timer->GetTime();
 		// ### ColorStage ###
-		/*PointLight* lightPointer =  g_lightBuffer->Map<PointLight>();
-
-		memcpy(lightPointer, g_lights, sizeof(PointLight)*sizeof(g_lights)/sizeof(PointLight));
-		g_lightBuffer->Unmap();
-		g_lightBuffer->CopyToResource();*/
 
 		g_DeviceContext->CSSetShaderResources(0,6,colorBuffer);		
 		g_DeviceContext->CSSetUnorderedAccessViews(0, 2, uav, NULL);
@@ -482,7 +475,7 @@ HRESULT InitWindow( HINSTANCE hInstance, int nCmdShow )
 	wcex.hCursor        = LoadCursor(NULL, IDC_ARROW);
 	wcex.hbrBackground  = (HBRUSH)(COLOR_WINDOW+1);
 	wcex.lpszMenuName   = NULL;
-	wcex.lpszClassName  = L"BTH_D3D_Template";
+	wcex.lpszClassName  = "BTH_D3D_Template";
 	wcex.hIconSm        = 0;
 	if( !RegisterClassEx(&wcex) )
 		return E_FAIL;
@@ -493,8 +486,8 @@ HRESULT InitWindow( HINSTANCE hInstance, int nCmdShow )
 	AdjustWindowRect( &rc, WS_OVERLAPPEDWINDOW, FALSE );
 	
 	if(!(g_hWnd = CreateWindow(
-							L"BTH_D3D_Template",
-							L"BTH - Direct3D 11.0 Template",
+							"BTH_D3D_Template",
+							"BTH - Direct3D 11.0 Template",
 							WS_OVERLAPPEDWINDOW,
 							CW_USEDEFAULT,
 							CW_USEDEFAULT,
